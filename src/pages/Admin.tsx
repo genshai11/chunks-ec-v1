@@ -8,8 +8,8 @@ import {
   BookOpen, 
   GraduationCap, 
   Coins, 
-  Settings,
-  ArrowLeft
+  ArrowLeft,
+  Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -17,6 +17,7 @@ import CourseManagement from '@/components/admin/CourseManagement';
 import LessonManagement from '@/components/admin/LessonManagement';
 import UserManagement from '@/components/admin/UserManagement';
 import CoinConfigPanel from '@/components/admin/CoinConfigPanel';
+import ScoringConfigPanel from '@/components/admin/ScoringConfigPanel';
 
 const Admin: React.FC = () => {
   const { isAdmin, isTeacher, isLoading } = useAuth();
@@ -47,7 +48,7 @@ const Admin: React.FC = () => {
             </Link>
             <div>
               <h1 className="text-xl font-display font-bold">Admin Panel</h1>
-              <p className="text-sm text-muted-foreground">Manage courses, lessons, and users</p>
+              <p className="text-sm text-muted-foreground">Manage courses, lessons, users & scoring</p>
             </div>
           </div>
         </div>
@@ -55,7 +56,7 @@ const Admin: React.FC = () => {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-card/50 p-1">
+          <TabsList className="bg-card/50 p-1 flex-wrap">
             <TabsTrigger value="courses" className="gap-2">
               <GraduationCap className="w-4 h-4" />
               Courses
@@ -72,7 +73,11 @@ const Admin: React.FC = () => {
                 </TabsTrigger>
                 <TabsTrigger value="coins" className="gap-2">
                   <Coins className="w-4 h-4" />
-                  Coin Config
+                  Coins
+                </TabsTrigger>
+                <TabsTrigger value="scoring" className="gap-2">
+                  <Activity className="w-4 h-4" />
+                  Scoring
                 </TabsTrigger>
               </>
             )}
@@ -100,6 +105,10 @@ const Admin: React.FC = () => {
 
                 <TabsContent value="coins" className="mt-0">
                   <CoinConfigPanel />
+                </TabsContent>
+
+                <TabsContent value="scoring" className="mt-0">
+                  <ScoringConfigPanel />
                 </TabsContent>
               </>
             )}
