@@ -14,16 +14,393 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      coin_config: {
+        Row: {
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      coin_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_id: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      courses: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          start_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          start_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          start_date?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      enrollments: {
+        Row: {
+          completed_at: string | null
+          course_id: string
+          enrolled_at: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          course_id: string
+          enrolled_at?: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          course_id?: string
+          enrolled_at?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons: {
+        Row: {
+          categories: Json
+          course_id: string
+          created_at: string
+          deadline_date: string | null
+          id: string
+          lesson_file: string | null
+          lesson_name: string
+          order_index: number
+          updated_at: string
+        }
+        Insert: {
+          categories?: Json
+          course_id: string
+          created_at?: string
+          deadline_date?: string | null
+          id?: string
+          lesson_file?: string | null
+          lesson_name: string
+          order_index?: number
+          updated_at?: string
+        }
+        Update: {
+          categories?: Json
+          course_id?: string
+          created_at?: string
+          deadline_date?: string | null
+          id?: string
+          lesson_file?: string | null
+          lesson_name?: string
+          order_index?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_history: {
+        Row: {
+          audio_url: string | null
+          category: string
+          coins_earned: number
+          id: string
+          item_index: number
+          lesson_id: string
+          metrics: Json | null
+          practiced_at: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          category: string
+          coins_earned?: number
+          id?: string
+          item_index: number
+          lesson_id: string
+          metrics?: Json | null
+          practiced_at?: string
+          score?: number
+          user_id: string
+        }
+        Update: {
+          audio_url?: string | null
+          category?: string
+          coins_earned?: number
+          id?: string
+          item_index?: number
+          lesson_id?: string
+          metrics?: Json | null
+          practiced_at?: string
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_history_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scoring_config: {
+        Row: {
+          description: string | null
+          id: string
+          max_value: number | null
+          metric_name: string
+          min_value: number | null
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          max_value?: number | null
+          metric_name: string
+          min_value?: number | null
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          max_value?: number | null
+          metric_name?: string
+          min_value?: number | null
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      user_progress: {
+        Row: {
+          attempts: number
+          best_score: number
+          category: string
+          id: string
+          item_index: number
+          last_practiced_at: string | null
+          lesson_id: string
+          mastery_level: number
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          best_score?: number
+          category: string
+          id?: string
+          item_index: number
+          last_practiced_at?: string | null
+          lesson_id: string
+          mastery_level?: number
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          best_score?: number
+          category?: string
+          id?: string
+          item_index?: number
+          last_practiced_at?: string | null
+          lesson_id?: string
+          mastery_level?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_progress_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          total_earned: number
+          total_spent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          total_earned?: number
+          total_spent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          total_earned?: number
+          total_spent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "teacher" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +527,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "teacher", "user"],
+    },
   },
 } as const
