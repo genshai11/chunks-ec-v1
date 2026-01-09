@@ -118,12 +118,12 @@ const LessonManagement: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+          <Select value={selectedCourse || "all"} onValueChange={(v) => setSelectedCourse(v === "all" ? "" : v)}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Filter by course" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Courses</SelectItem>
+              <SelectItem value="all">All Courses</SelectItem>
               {courses?.map(course => (
                 <SelectItem key={course.id} value={course.id}>
                   {course.code} - {course.name}
