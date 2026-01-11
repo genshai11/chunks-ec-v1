@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, 
@@ -12,11 +12,15 @@ import {
   EyeOff,
   Loader2,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Flame,
+  Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { CoinBadge } from "@/components/ui/CoinBadge";
+import { AudioWaveform } from "@/components/ui/AudioWaveform";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useTranscribe, useAnalyzeSpeech, useSavePractice, SpeechAnalysisResult } from "@/hooks/usePractice";
@@ -53,6 +57,11 @@ export const PracticeModal = ({
   const [coinChange, setCoinChange] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
+  const [sessionStats, setSessionStats] = useState({ 
+    completed: 0, 
+    totalScore: 0, 
+    coinsEarned: 0 
+  });
 
   const recorder = useAudioRecorder();
   const tts = useTextToSpeech();
@@ -60,10 +69,19 @@ export const PracticeModal = ({
   const analyze = useAnalyzeSpeech();
   const savePractice = useSavePractice();
   const { data: coinConfig } = useCoinConfig();
-  const { data: wallet } = useWallet();
+  const { data: wallet, refetch: refetchWallet } = useWallet();
 
   const currentItem = items[currentIndex];
   const progress = ((currentIndex + 1) / items.length) * 100;
+
+  // Metric labels for display
+  const metricLabels: Record<string, string> = {
+    volume: 'Volume',
+    speechRate: 'Speed',
+    pauses: 'Fluency',
+    latency: 'Response',
+    endIntensity: 'Energy'
+  };
 
   // Reset state when modal closes
   useEffect(() => {
@@ -72,6 +90,7 @@ export const PracticeModal = ({
       setShowEnglish(false);
       setAnalysisResult(null);
       setCoinChange(null);
+      setSessionStats({ completed: 0, totalScore: 0, coinsEarned: 0 });
       recorder.resetRecording();
     }
   }, [isOpen]);
@@ -112,12 +131,12 @@ export const PracticeModal = ({
       
       // Calculate metrics based on recording
       const metrics = {
-        volume: -25 + Math.random() * 10, // Simulated, would come from audio analysis
+        volume: -45 + (recorder.volume / 100) * 25,
         speechRate: transcriptionResult.wordsPerMinute,
         pauseCount: Math.floor(Math.random() * 3),
         longestPause: Math.floor(Math.random() * 1000),
         latency: Math.min(latency, 3000),
-        endIntensity: 70 + Math.random() * 30
+        endIntensity: Math.min(100, 60 + recorder.volume * 0.4)
       };
 
       // Analyze speech
@@ -145,13 +164,12 @@ export const PracticeModal = ({
           );
         }
       } else {
-        // Default calculation
-        coins = score >= 70 ? Math.floor(score / 10) : -5;
+        coins = score >= 70 ? Math.floor(score / 10) : (score < 50 ? -5 : 0);
       }
 
       setCoinChange(coins);
 
-      // Save practice result
+      // Save practice result (includes streak + badge updates)
       await savePractice.mutateAsync({
         lessonId,
         category,
@@ -160,6 +178,16 @@ export const PracticeModal = ({
         coinsEarned: coins,
         metrics: result.metrics
       });
+
+      // Update session stats
+      setSessionStats(prev => ({
+        completed: prev.completed + 1,
+        totalScore: prev.totalScore + score,
+        coinsEarned: prev.coinsEarned + coins
+      }));
+
+      // Refetch wallet to show updated balance
+      refetchWallet();
 
     } catch (error: any) {
       console.error("Error analyzing speech:", error);
@@ -177,8 +205,14 @@ export const PracticeModal = ({
       setShowEnglish(false);
       recorder.resetRecording();
     } else {
-      // Completed all items
-      toast.success("Practice session complete! 🎉");
+      // Show session summary
+      const avgScore = sessionStats.completed > 0 
+        ? Math.round(sessionStats.totalScore / sessionStats.completed) 
+        : 0;
+      
+      toast.success("Practice session complete! 🎉", {
+        description: `Average: ${avgScore}% | Coins: ${sessionStats.coinsEarned >= 0 ? '+' : ''}${sessionStats.coinsEarned}`
+      });
       onClose();
     }
   };
@@ -202,6 +236,13 @@ export const PracticeModal = ({
   if (!isOpen) return null;
 
   const isLastItem = currentIndex === items.length - 1;
+  const scoreColor = analysisResult 
+    ? analysisResult.score >= 80 
+      ? "text-success" 
+      : analysisResult.score >= 60 
+        ? "text-warning" 
+        : "text-destructive"
+    : "";
 
   return (
     <AnimatePresence>
@@ -215,17 +256,28 @@ export const PracticeModal = ({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="w-full max-w-2xl bg-card rounded-3xl border border-border/50 overflow-hidden"
+          className="w-full max-w-2xl bg-card rounded-3xl border border-border/50 overflow-hidden shadow-2xl"
         >
           {/* Header */}
-          <div className="p-6 border-b border-border/50 flex items-center justify-between">
+          <div className="p-6 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent">
             <div>
               <h2 className="font-display font-semibold text-lg">{lessonName}</h2>
-              <p className="text-sm text-muted-foreground">{category}</p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Badge variant="secondary">{category}</Badge>
+                {sessionStats.completed > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Trophy className="w-3 h-3" />
+                    Avg: {Math.round(sessionStats.totalScore / sessionStats.completed)}%
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3">
-              <CoinBadge amount={wallet?.balance || 0} showChange={coinChange || undefined} />
-              <Button variant="ghost" size="icon" onClick={onClose}>
+              <CoinBadge 
+                amount={wallet?.balance || 0} 
+                showChange={coinChange || undefined} 
+              />
+              <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-destructive/10">
                 <X size={20} />
               </Button>
             </div>
@@ -263,7 +315,7 @@ export const PracticeModal = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowEnglish(!showEnglish)}
-                className="mx-auto flex items-center gap-2 text-muted-foreground"
+                className="mx-auto flex items-center gap-2 text-muted-foreground hover:text-foreground"
               >
                 {showEnglish ? <EyeOff size={16} /> : <Eye size={16} />}
                 {showEnglish ? "Hide Answer" : "Show Answer"}
@@ -274,83 +326,152 @@ export const PracticeModal = ({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="text-center mt-4 p-4 rounded-xl bg-secondary/30 border border-border/50"
+                    className="text-center mt-4 p-4 rounded-xl bg-primary/5 border border-primary/20"
                   >
-                    <p className="text-lg text-primary">{currentItem.english}</p>
+                    <p className="text-lg text-primary font-medium">{currentItem.english}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Volume Indicator while recording */}
+            {/* Audio Waveform while recording */}
             {recorder.isRecording && (
               <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 className="mb-6"
               >
-                <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="flex items-center justify-center gap-2 mb-3">
                   <div className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm font-medium text-destructive">
                     Recording... {Math.round(recorder.recordingTime / 1000)}s
                   </span>
                 </div>
-                <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <motion.div 
-                    className="h-full bg-primary"
-                    style={{ width: `${recorder.volume}%` }}
-                    transition={{ duration: 0.1 }}
-                  />
-                </div>
+                <AudioWaveform 
+                  isRecording={recorder.isRecording} 
+                  audioLevel={recorder.volume / 100} 
+                  className="mx-auto"
+                />
+              </motion.div>
+            )}
+
+            {/* Analyzing State */}
+            {isAnalyzing && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mb-6 text-center py-8"
+              >
+                <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-muted-foreground">Analyzing your pronunciation...</p>
               </motion.div>
             )}
 
             {/* Analysis Result */}
-            {analysisResult && (
+            {analysisResult && !isAnalyzing && (
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 className="mb-8"
               >
-                <div className="text-center mb-4">
-                  <div className={`inline-flex items-center gap-3 px-6 py-4 rounded-2xl ${
-                    analysisResult.score >= 70 
-                      ? "bg-success/10 border border-success/30" 
-                      : "bg-destructive/10 border border-destructive/30"
-                  }`}>
-                    {analysisResult.score >= 70 ? (
-                      <CheckCircle2 className="w-8 h-8 text-success" />
-                    ) : (
-                      <XCircle className="w-8 h-8 text-destructive" />
-                    )}
-                    <span className={`text-4xl font-display font-bold ${
-                      analysisResult.score >= 70 ? "text-success" : "text-destructive"
-                    }`}>
+                {/* Score Circle */}
+                <div className="text-center mb-6">
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", bounce: 0.5 }}
+                    className={`inline-flex flex-col items-center justify-center w-32 h-32 rounded-full ${
+                      analysisResult.score >= 80 
+                        ? "bg-success/10 border-4 border-success/30" 
+                        : analysisResult.score >= 60
+                          ? "bg-warning/10 border-4 border-warning/30"
+                          : "bg-destructive/10 border-4 border-destructive/30"
+                    }`}
+                  >
+                    <motion.span 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                      className={`text-4xl font-display font-bold ${scoreColor}`}
+                    >
                       {analysisResult.score}
-                    </span>
-                    <span className="text-muted-foreground">points</span>
-                  </div>
+                    </motion.span>
+                    <span className="text-xs text-muted-foreground">points</span>
+                    {analysisResult.score >= 80 && (
+                      <CheckCircle2 className="w-5 h-5 text-success mt-1" />
+                    )}
+                  </motion.div>
+
+                  {/* Coin change indicator */}
+                  {coinChange !== null && coinChange !== 0 && (
+                    <motion.div
+                      initial={{ y: -10, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.5 }}
+                      className={`mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                        coinChange > 0 
+                          ? "bg-success/10 text-success" 
+                          : "bg-destructive/10 text-destructive"
+                      }`}
+                    >
+                      <span className="text-lg">🪙</span>
+                      {coinChange > 0 ? '+' : ''}{coinChange}
+                    </motion.div>
+                  )}
                 </div>
 
                 {/* Metrics Breakdown */}
                 <div className="grid grid-cols-5 gap-2 mb-4">
-                  {Object.entries(analysisResult.metrics).map(([key, value]) => (
-                    <div key={key} className="text-center p-2 rounded-lg bg-secondary/30">
-                      <div className="text-xs text-muted-foreground capitalize">{key}</div>
-                      <div className={`text-sm font-semibold ${
-                        value >= 70 ? "text-success" : value >= 50 ? "text-warning" : "text-destructive"
+                  {Object.entries(analysisResult.metrics).map(([key, value], index) => (
+                    <motion.div 
+                      key={key} 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 * index }}
+                      className="text-center p-3 rounded-xl bg-secondary/50 border border-border/50"
+                    >
+                      <div className="text-xs text-muted-foreground mb-1">
+                        {metricLabels[key] || key}
+                      </div>
+                      <div className={`text-lg font-bold ${
+                        value >= 80 ? "text-success" 
+                          : value >= 60 ? "text-warning" 
+                          : "text-destructive"
                       }`}>
                         {value}%
                       </div>
-                    </div>
+                      <div className="h-1.5 bg-secondary rounded-full mt-2 overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${value}%` }}
+                          transition={{ delay: 0.3 + 0.1 * index, duration: 0.5 }}
+                          className={`h-full rounded-full ${
+                            value >= 80 ? "bg-success" 
+                              : value >= 60 ? "bg-warning" 
+                              : "bg-destructive"
+                          }`}
+                        />
+                      </div>
+                    </motion.div>
                   ))}
                 </div>
 
+                {/* Transcription */}
+                {analysisResult.transcription && (
+                  <div className="p-3 rounded-xl bg-secondary/30 text-sm mb-4">
+                    <p className="text-xs text-muted-foreground mb-1">You said:</p>
+                    <p className="text-foreground italic">"{analysisResult.transcription}"</p>
+                  </div>
+                )}
+
                 {/* Feedback */}
                 {analysisResult.feedback.length > 0 && (
-                  <div className="p-3 rounded-xl bg-secondary/20 text-sm">
+                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-sm">
                     {analysisResult.feedback.map((fb, i) => (
-                      <p key={i} className="text-muted-foreground">{fb}</p>
+                      <p key={i} className="text-muted-foreground flex items-start gap-2">
+                        <span className="text-primary">💡</span>
+                        {fb}
+                      </p>
                     ))}
                   </div>
                 )}
@@ -358,64 +479,60 @@ export const PracticeModal = ({
             )}
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-center gap-4">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleListen}
-                disabled={isAnalyzing}
-                className="gap-2"
-              >
-                <Volume2 size={20} className={tts.isSpeaking ? "animate-pulse" : ""} />
-                {tts.isSpeaking ? "Speaking..." : "Listen"}
-              </Button>
-
-              <motion.div whileTap={{ scale: 0.95 }}>
-                <Button
-                  size="lg"
-                  onClick={recorder.isRecording ? handleStopRecording : handleStartRecording}
-                  disabled={isAnalyzing}
-                  className={`gap-2 w-40 ${
-                    recorder.isRecording 
-                      ? "bg-destructive hover:bg-destructive/90" 
-                      : "gradient-primary text-primary-foreground"
-                  }`}
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : recorder.isRecording ? (
-                    <>
-                      <Square size={20} />
-                      Stop
-                    </>
-                  ) : (
-                    <>
-                      <Mic size={20} />
-                      Record
-                    </>
-                  )}
-                </Button>
-              </motion.div>
-
-              {analysisResult && (
+            {!isAnalyzing && (
+              <div className="flex items-center justify-center gap-4">
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={handleRetry}
+                  onClick={handleListen}
+                  disabled={recorder.isRecording}
                   className="gap-2"
                 >
-                  <RotateCcw size={20} />
-                  Retry
+                  <Volume2 size={20} className={tts.isSpeaking ? "animate-pulse text-primary" : ""} />
+                  {tts.isSpeaking ? "Speaking..." : "Listen"}
                 </Button>
-              )}
-            </div>
+
+                <motion.div whileTap={{ scale: 0.95 }}>
+                  <Button
+                    size="lg"
+                    onClick={recorder.isRecording ? handleStopRecording : handleStartRecording}
+                    className={`gap-2 w-40 ${
+                      recorder.isRecording 
+                        ? "bg-destructive hover:bg-destructive/90" 
+                        : "gradient-primary text-primary-foreground"
+                    }`}
+                  >
+                    {recorder.isRecording ? (
+                      <>
+                        <Square size={20} />
+                        Stop
+                      </>
+                    ) : (
+                      <>
+                        <Mic size={20} />
+                        Record
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
+
+                {analysisResult && (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={handleRetry}
+                    className="gap-2"
+                  >
+                    <RotateCcw size={20} />
+                    Retry
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Footer Navigation */}
-          <div className="p-6 border-t border-border/50 flex items-center justify-between">
+          <div className="p-6 border-t border-border/50 flex items-center justify-between bg-secondary/20">
             <Button
               variant="ghost"
               onClick={handlePrev}
@@ -425,6 +542,16 @@ export const PracticeModal = ({
               <ChevronLeft size={20} />
               Previous
             </Button>
+            
+            <div className="text-sm text-muted-foreground">
+              {sessionStats.completed > 0 && (
+                <span className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  {sessionStats.completed} completed
+                </span>
+              )}
+            </div>
+
             <Button
               variant="default"
               onClick={handleNext}

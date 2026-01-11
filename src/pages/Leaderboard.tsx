@@ -1,15 +1,31 @@
-import { motion } from "framer-motion";
-import { Trophy, Medal, Award, Crown, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trophy, Medal, Award, Crown, Loader2, ArrowUp, ArrowDown, Sparkles, Radio, RefreshCw } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { useLeaderboard, useUserRank } from "@/hooks/useLeaderboard";
+import { useRealtimeLeaderboard } from "@/hooks/useRealtimeLeaderboard";
+import { useStreakLeaderboard } from "@/hooks/useStreak";
 import { useAuth } from "@/context/AuthContext";
 
 const Leaderboard = () => {
   const { user } = useAuth();
-  const { data: leaderboard, isLoading } = useLeaderboard(50);
-  const { data: userRank } = useUserRank(user?.id);
+  const { leaderboard, isLoading, isLive, userRank, forceRefresh } = useRealtimeLeaderboard(50);
+  const { data: streakLeaderboard } = useStreakLeaderboard(20);
+  const [highlightedUser, setHighlightedUser] = useState<string | null>(null);
+
+  // Highlight users who just updated
+  useEffect(() => {
+    const recentChange = leaderboard.find(e => e.rankChange === 'up' || e.rankChange === 'new');
+    if (recentChange) {
+      setHighlightedUser(recentChange.userId);
+      const timer = setTimeout(() => setHighlightedUser(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [leaderboard]);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -24,16 +40,30 @@ const Leaderboard = () => {
     }
   };
 
-  const getRankStyle = (rank: number) => {
+  const getRankStyle = (rank: number, isHighlighted: boolean) => {
+    const base = isHighlighted ? "ring-2 ring-primary animate-pulse" : "";
     switch (rank) {
       case 1:
-        return "bg-gradient-to-r from-yellow-500/10 to-yellow-600/5 border-yellow-500/30";
+        return `bg-gradient-to-r from-yellow-500/10 to-yellow-600/5 border-yellow-500/30 ${base}`;
       case 2:
-        return "bg-gradient-to-r from-gray-400/10 to-gray-500/5 border-gray-400/30";
+        return `bg-gradient-to-r from-gray-400/10 to-gray-500/5 border-gray-400/30 ${base}`;
       case 3:
-        return "bg-gradient-to-r from-amber-600/10 to-amber-700/5 border-amber-600/30";
+        return `bg-gradient-to-r from-amber-600/10 to-amber-700/5 border-amber-600/30 ${base}`;
       default:
-        return "bg-card border-border/50";
+        return `bg-card border-border/50 ${base}`;
+    }
+  };
+
+  const getRankChangeIndicator = (change?: 'up' | 'down' | 'same' | 'new') => {
+    switch (change) {
+      case 'up':
+        return <ArrowUp className="w-4 h-4 text-success animate-bounce" />;
+      case 'down':
+        return <ArrowDown className="w-4 h-4 text-destructive" />;
+      case 'new':
+        return <Sparkles className="w-4 h-4 text-primary animate-pulse" />;
+      default:
+        return null;
     }
   };
 
@@ -49,7 +79,7 @@ const Leaderboard = () => {
     <div className="min-h-screen bg-background">
       <Sidebar />
       
-      <main className="ml-64 p-8">
+      <main className="ml-0 md:ml-64 p-4 md:p-8">
         <div className="max-w-3xl mx-auto">
           {/* Header */}
           <motion.div
@@ -57,107 +87,210 @@ const Leaderboard = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-3xl font-display font-bold flex items-center gap-3">
-              <Trophy className="w-8 h-8 text-primary" />
-              Leaderboard
-            </h1>
-            <p className="text-muted-foreground">
-              Top learners by total score
-            </p>
-          </motion.div>
-
-        {/* User's Rank */}
-        {userRank && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6"
-          >
-            <Card className="bg-primary/5 border-primary/20">
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                      <span className="text-lg font-bold text-primary">#{userRank}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium">Your Rank</p>
-                      <p className="text-sm text-muted-foreground">Keep practicing to climb higher!</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Leaderboard List */}
-        <div className="space-y-3">
-          {leaderboard?.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  No rankings yet. Be the first to practice and earn points!
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-display font-bold flex items-center gap-3">
+                  <Trophy className="w-8 h-8 text-primary" />
+                  Leaderboard
+                </h1>
+                <p className="text-muted-foreground flex items-center gap-2">
+                  Top learners by total score
+                  {isLive && (
+                    <Badge variant="secondary" className="gap-1 animate-pulse">
+                      <Radio className="w-3 h-3" />
+                      Live
+                    </Badge>
+                  )}
                 </p>
-              </CardContent>
-            </Card>
-          ) : (
-            leaderboard?.map((entry, index) => (
-              <motion.div
-                key={entry.userId}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card className={`${getRankStyle(entry.rank)} ${
-                  entry.userId === user?.id ? "ring-2 ring-primary" : ""
-                }`}>
-                  <CardContent className="py-4">
-                    <div className="flex items-center gap-4">
-                      {/* Rank */}
-                      <div className="w-10 flex items-center justify-center">
-                        {getRankIcon(entry.rank)}
-                      </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={forceRefresh} className="gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </Button>
+            </div>
+          </motion.div>
 
-                      {/* Avatar */}
-                      <Avatar className="w-12 h-12">
-                        <AvatarImage src={entry.avatarUrl || undefined} />
-                        <AvatarFallback className="bg-secondary text-lg">
-                          {entry.displayName.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+          {/* Tabs for different leaderboards */}
+          <Tabs defaultValue="score" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="score" className="gap-2">
+                <Trophy className="w-4 h-4" />
+                Total Score
+              </TabsTrigger>
+              <TabsTrigger value="streak" className="gap-2">
+                <Sparkles className="w-4 h-4" />
+                Streaks
+              </TabsTrigger>
+            </TabsList>
 
-                      {/* Name & Stats */}
-                      <div className="flex-1">
-                        <p className="font-semibold">
-                          {entry.displayName}
-                          {entry.userId === user?.id && (
-                            <span className="ml-2 text-xs text-primary">(You)</span>
-                          )}
-                        </p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>{entry.practiceCount} practices</span>
-                          <span>Avg: {entry.avgScore}%</span>
+            <TabsContent value="score" className="space-y-4">
+              {/* User's Rank */}
+              {userRank && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <Card className="bg-primary/5 border-primary/20">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                            <span className="text-lg font-bold text-primary">#{userRank}</span>
+                          </div>
+                          <div>
+                            <p className="font-medium">Your Rank</p>
+                            <p className="text-sm text-muted-foreground">Keep practicing to climb higher!</p>
+                          </div>
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
 
-                      {/* Score & Coins */}
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-primary">
-                          {entry.totalScore.toLocaleString()}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {entry.coins.toLocaleString()} C
-                        </div>
-                      </div>
+              {/* Leaderboard List */}
+              <div className="space-y-3">
+                {leaderboard.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        No rankings yet. Be the first to practice and earn points!
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <AnimatePresence mode="popLayout">
+                    {leaderboard.map((entry, index) => (
+                      <motion.div
+                        key={entry.userId}
+                        layout
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ delay: index * 0.02 }}
+                      >
+                        <Card className={`transition-all duration-300 ${getRankStyle(entry.rank, highlightedUser === entry.userId)} ${
+                          entry.userId === user?.id ? "ring-2 ring-primary" : ""
+                        }`}>
+                          <CardContent className="py-4">
+                            <div className="flex items-center gap-4">
+                              {/* Rank */}
+                              <div className="w-10 flex items-center justify-center relative">
+                                {getRankIcon(entry.rank)}
+                                {entry.rankChange && entry.rankChange !== 'same' && (
+                                  <div className="absolute -top-1 -right-1">
+                                    {getRankChangeIndicator(entry.rankChange)}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Avatar */}
+                              <Avatar className="w-12 h-12">
+                                <AvatarImage src={entry.avatarUrl || undefined} />
+                                <AvatarFallback className="bg-secondary text-lg">
+                                  {entry.displayName.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+
+                              {/* Name & Stats */}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold truncate">
+                                  {entry.displayName}
+                                  {entry.userId === user?.id && (
+                                    <span className="ml-2 text-xs text-primary">(You)</span>
+                                  )}
+                                  {entry.rankChange === 'new' && (
+                                    <Badge variant="secondary" className="ml-2 text-xs">New</Badge>
+                                  )}
+                                </p>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                  <span>{entry.practiceCount} practices</span>
+                                  <span>Avg: {entry.avgScore}%</span>
+                                </div>
+                              </div>
+
+                              {/* Score & Coins */}
+                              <div className="text-right">
+                                <motion.div 
+                                  key={entry.totalScore}
+                                  initial={{ scale: entry.rankChange === 'up' ? 1.2 : 1 }}
+                                  animate={{ scale: 1 }}
+                                  className="text-xl font-bold text-primary"
+                                >
+                                  {entry.totalScore.toLocaleString()}
+                                </motion.div>
+                                <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
+                                  <span className="text-yellow-500">🪙</span>
+                                  {entry.coins.toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="streak" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-orange-500" />
+                    Streak Champions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!streakLeaderboard || streakLeaderboard.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      No streak data yet. Start practicing daily!
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {streakLeaderboard.map((entry, index) => (
+                        <motion.div
+                          key={entry.userId}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className={`flex items-center gap-4 p-3 rounded-xl ${
+                            entry.userId === user?.id 
+                              ? "bg-primary/10 border border-primary/20" 
+                              : "bg-secondary/30"
+                          }`}
+                        >
+                          <div className="w-8 flex justify-center">
+                            {getRankIcon(entry.rank)}
+                          </div>
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage src={entry.avatarUrl || undefined} />
+                            <AvatarFallback className="bg-secondary">
+                              {entry.displayName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium">{entry.displayName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Best: {entry.longestStreak} days
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-bold text-orange-500 flex items-center gap-1">
+                              🔥 {entry.currentStreak}
+                            </div>
+                            <div className="text-xs text-muted-foreground">days</div>
+                          </div>
+                        </motion.div>
+                      ))}
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
-          )}
-        </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>
