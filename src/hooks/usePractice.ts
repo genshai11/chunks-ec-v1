@@ -121,32 +121,24 @@ export const useUserStats = () => {
 
       if (historyError) throw historyError;
 
+      // Get streak data
+      const { data: streakData } = await supabase
+        .from('daily_streaks')
+        .select('current_streak, longest_streak')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      // Get mastered items count
+      const { data: progressData } = await supabase
+        .from('user_progress')
+        .select('mastery_level')
+        .eq('user_id', user.id);
+
       // Calculate stats
       const totalPractice = history?.length || 0;
       const avgScore = totalPractice > 0
         ? Math.round(history.reduce((sum, h) => sum + h.score, 0) / totalPractice)
         : 0;
-
-      // Calculate streak (consecutive days)
-      let streak = 0;
-      if (history && history.length > 0) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const practiceDays = new Set(
-          history.map(h => {
-            const date = new Date(h.practiced_at);
-            date.setHours(0, 0, 0, 0);
-            return date.getTime();
-          })
-        );
-
-        let checkDate = today.getTime();
-        while (practiceDays.has(checkDate)) {
-          streak++;
-          checkDate -= 24 * 60 * 60 * 1000;
-        }
-      }
 
       // Calculate practice time this week
       const weekAgo = new Date();
@@ -154,13 +146,22 @@ export const useUserStats = () => {
       const thisWeekPractice = history?.filter(
         h => new Date(h.practiced_at) >= weekAgo
       ).length || 0;
-      const practiceHours = Math.round((thisWeekPractice * 2) / 60); // Estimate 2 min per practice
+      const practiceHours = Math.round((thisWeekPractice * 2) / 60);
+
+      // Count mastered and high scores
+      const masteredCount = progressData?.filter(p => p.mastery_level >= 3).length || 0;
+      const perfectScores = history?.filter(h => h.score >= 95).length || 0;
+      const highScores = history?.filter(h => h.score >= 80).length || 0;
 
       return {
         totalPractice,
         avgScore,
-        streak,
+        streak: streakData?.current_streak || 0,
+        longestStreak: streakData?.longest_streak || 0,
         practiceHours,
+        masteredCount,
+        perfectScores,
+        highScores,
         recentHistory: history?.slice(0, 10) || []
       };
     },
@@ -211,7 +212,7 @@ export const useAnalyzeSpeech = () => {
   });
 };
 
-// Save practice result
+// Save practice result with automatic streak and badge updates
 export const useSavePractice = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -227,6 +228,9 @@ export const useSavePractice = () => {
       audioUrl?: string;
     }) => {
       if (!user?.id) throw new Error('Not authenticated');
+
+      const today = new Date().toISOString().split('T')[0];
+      const currentHour = new Date().getHours();
 
       // 1. Save practice history
       const { error: historyError } = await supabase
@@ -321,14 +325,237 @@ export const useSavePractice = () => {
         }
       }
 
-      return { success: true };
+      // 4. Update streak
+      let streakResult = { current_streak: 0, is_new_day: false, streak_extended: false };
+      const { data: existingStreak } = await supabase
+        .from('daily_streaks')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingStreak) {
+        await supabase
+          .from('daily_streaks')
+          .insert({
+            user_id: user.id,
+            current_streak: 1,
+            longest_streak: 1,
+            last_practice_date: today,
+            streak_start_date: today
+          });
+        streakResult = { current_streak: 1, is_new_day: true, streak_extended: false };
+      } else if (existingStreak.last_practice_date !== today) {
+        const lastDate = existingStreak.last_practice_date 
+          ? new Date(existingStreak.last_practice_date) 
+          : null;
+        const todayDate = new Date(today);
+        
+        let newStreak = 1;
+        let streakStart = today;
+        
+        if (lastDate) {
+          const diffDays = Math.floor(
+            (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          
+          if (diffDays === 1) {
+            newStreak = existingStreak.current_streak + 1;
+            streakStart = existingStreak.streak_start_date || today;
+          }
+        }
+
+        const newLongest = Math.max(existingStreak.longest_streak, newStreak);
+
+        await supabase
+          .from('daily_streaks')
+          .update({
+            current_streak: newStreak,
+            longest_streak: newLongest,
+            last_practice_date: today,
+            streak_start_date: streakStart
+          })
+          .eq('user_id', user.id);
+
+        streakResult = { 
+          current_streak: newStreak, 
+          is_new_day: true, 
+          streak_extended: newStreak > 1 
+        };
+      } else {
+        streakResult = { 
+          current_streak: existingStreak.current_streak, 
+          is_new_day: false, 
+          streak_extended: false 
+        };
+      }
+
+      // 5. Get updated stats for badge check
+      const { data: allHistory } = await supabase
+        .from('practice_history')
+        .select('score, practiced_at')
+        .eq('user_id', user.id);
+
+      const { data: allProgress } = await supabase
+        .from('user_progress')
+        .select('mastery_level')
+        .eq('user_id', user.id);
+
+      const { data: walletData } = await supabase
+        .from('user_wallets')
+        .select('balance')
+        .eq('user_id', user.id)
+        .single();
+
+      // Count today's practices
+      const todayPractices = allHistory?.filter(h => 
+        h.practiced_at.startsWith(today)
+      ).length || 0;
+
+      const stats = {
+        practiceCount: allHistory?.length || 0,
+        totalCoins: walletData?.balance || 0,
+        currentStreak: streakResult.current_streak,
+        perfectScores: allHistory?.filter(h => h.score >= 95).length || 0,
+        highScores: allHistory?.filter(h => h.score >= 80).length || 0,
+        vocabMastered: allProgress?.filter(p => p.mastery_level >= 3).length || 0,
+        practiceHour: currentHour,
+        dailyPractices: todayPractices
+      };
+
+      // 6. Check and award badges
+      const { data: allBadges } = await supabase
+        .from('badges')
+        .select('*');
+
+      const { data: existingBadges } = await supabase
+        .from('user_badges')
+        .select('badge_id')
+        .eq('user_id', user.id);
+
+      const existingBadgeIds = new Set(existingBadges?.map(b => b.badge_id));
+      const newBadges: Array<{ name: string; coins_reward: number; rarity: string }> = [];
+
+      for (const badge of allBadges || []) {
+        if (existingBadgeIds.has(badge.id)) continue;
+
+        let earned = false;
+
+        switch (badge.requirement_type) {
+          case 'practice_count':
+            earned = stats.practiceCount >= badge.requirement_value;
+            break;
+          case 'total_coins':
+            earned = stats.totalCoins >= badge.requirement_value;
+            break;
+          case 'streak_days':
+            earned = stats.currentStreak >= badge.requirement_value;
+            break;
+          case 'perfect_score':
+            earned = stats.perfectScores >= badge.requirement_value;
+            break;
+          case 'high_scores':
+            earned = stats.highScores >= badge.requirement_value;
+            break;
+          case 'vocab_mastered':
+            earned = stats.vocabMastered >= badge.requirement_value;
+            break;
+          case 'early_practice':
+            earned = stats.practiceHour < 8;
+            break;
+          case 'late_practice':
+            earned = stats.practiceHour >= 22;
+            break;
+          case 'daily_practices':
+            earned = stats.dailyPractices >= badge.requirement_value;
+            break;
+        }
+
+        if (earned) {
+          const { error: insertError } = await supabase
+            .from('user_badges')
+            .insert({
+              user_id: user.id,
+              badge_id: badge.id
+            });
+
+          if (!insertError) {
+            newBadges.push({
+              name: badge.name,
+              coins_reward: badge.coins_reward,
+              rarity: badge.rarity
+            });
+
+            // Award badge coins
+            if (badge.coins_reward > 0) {
+              const { data: currentWallet } = await supabase
+                .from('user_wallets')
+                .select('balance, total_earned')
+                .eq('user_id', user.id)
+                .single();
+
+              if (currentWallet) {
+                await supabase
+                  .from('user_wallets')
+                  .update({
+                    balance: currentWallet.balance + badge.coins_reward,
+                    total_earned: currentWallet.total_earned + badge.coins_reward
+                  })
+                  .eq('user_id', user.id);
+
+                await supabase
+                  .from('coin_transactions')
+                  .insert({
+                    user_id: user.id,
+                    amount: badge.coins_reward,
+                    transaction_type: 'badge_reward',
+                    description: `Earned badge: ${badge.name}`
+                  });
+              }
+            }
+          }
+        }
+      }
+
+      return { 
+        success: true, 
+        streakResult, 
+        newBadges,
+        stats
+      };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['practice-history'] });
       queryClient.invalidateQueries({ queryKey: ['user-progress'] });
       queryClient.invalidateQueries({ queryKey: ['user-stats'] });
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
       queryClient.invalidateQueries({ queryKey: ['coin-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['user-streak'] });
+      queryClient.invalidateQueries({ queryKey: ['user-badges'] });
+      queryClient.invalidateQueries({ queryKey: ['realtime-leaderboard'] });
+
+      // Show streak notification
+      if (result.streakResult.is_new_day && result.streakResult.streak_extended) {
+        toast.success(`🔥 ${result.streakResult.current_streak} day streak!`, {
+          description: 'Keep up the great work!'
+        });
+      }
+
+      // Show badge notifications
+      result.newBadges.forEach(badge => {
+        const rarityEmoji = {
+          common: '🥉',
+          uncommon: '🥈',
+          rare: '🥇',
+          epic: '💎'
+        }[badge.rarity] || '🏆';
+
+        toast.success(`${rarityEmoji} Badge Unlocked: ${badge.name}!`, {
+          description: badge.coins_reward > 0 
+            ? `+${badge.coins_reward} coins reward!` 
+            : undefined,
+          duration: 5000
+        });
+      });
     },
     onError: (error) => {
       toast.error(`Failed to save practice: ${error.message}`);
