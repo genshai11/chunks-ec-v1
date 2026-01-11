@@ -92,7 +92,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Sidebar />
       
-      <main className="ml-64 p-8">
+      <main className="lg:ml-64 p-4 lg:p-8 pt-20 lg:pt-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <motion.div
@@ -100,7 +100,7 @@ const Index = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-3xl font-display font-bold text-foreground mb-2">
+            <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground mb-2">
               Welcome back, {profile?.display_name || 'Learner'}! 👋
             </h1>
             <p className="text-muted-foreground">
