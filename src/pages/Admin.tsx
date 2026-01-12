@@ -9,11 +9,13 @@ import {
   GraduationCap, 
   Coins, 
   ArrowLeft,
-  Activity
+  Activity,
+  CalendarDays
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import CourseManagement from '@/components/admin/CourseManagement';
+import ClassManagement from '@/components/admin/ClassManagement';
 import LessonManagement from '@/components/admin/LessonManagement';
 import UserManagement from '@/components/admin/UserManagement';
 import CoinConfigPanel from '@/components/admin/CoinConfigPanel';
@@ -61,6 +63,10 @@ const Admin: React.FC = () => {
               <GraduationCap className="w-4 h-4" />
               Courses
             </TabsTrigger>
+            <TabsTrigger value="classes" className="gap-2">
+              <CalendarDays className="w-4 h-4" />
+              Classes
+            </TabsTrigger>
             <TabsTrigger value="lessons" className="gap-2">
               <BookOpen className="w-4 h-4" />
               Lessons
@@ -87,6 +93,10 @@ const Admin: React.FC = () => {
           >
             <TabsContent value="courses" className="mt-0">
               <CourseManagement />
+            </TabsContent>
+
+            <TabsContent value="classes" className="mt-0">
+              <ClassManagement />
             </TabsContent>
 
             <TabsContent value="lessons" className="mt-0">
