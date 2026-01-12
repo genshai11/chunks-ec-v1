@@ -122,9 +122,7 @@ export const useUserEnrolledClass = () => {
 export const useUserEnrolledCourse = useUserEnrolledClass;
 
 // Leaderboard filtered by class - more specific than course
-export const useClassLeaderboard = (classId?: string, limit: number = 50) => {
-  const { user } = useAuth();
-
+export const useClassLeaderboard = (classId?: string | null, limit: number = 50) => {
   return useQuery({
     queryKey: ['class-leaderboard', classId, limit],
     queryFn: async () => {
@@ -168,7 +166,7 @@ export const useClassLeaderboard = (classId?: string, limit: number = 50) => {
         userScores[practice.user_id].count += 1;
       }
 
-      // Build leaderboard
+      // Build leaderboard - include ALL enrolled users even with 0 practice
       const leaderboard: CourseLeaderboardEntry[] = [];
 
       for (const profile of (profiles || [])) {

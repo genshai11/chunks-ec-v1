@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Loader2, 
   Users,
@@ -13,7 +14,10 @@ import {
   Coins,
   Shield,
   User as UserIcon,
-  GraduationCap
+  GraduationCap,
+  UserPlus,
+  Mail,
+  Lock
 } from 'lucide-react';
 import {
   Dialog,
@@ -22,6 +26,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -34,7 +39,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
 const UserManagement: React.FC = () => {
-  const { data: users, isLoading } = useAllUsers();
+  const { data: users, isLoading, refetch } = useAllUsers();
   const addCoins = useAddCoins();
   const queryClient = useQueryClient();
   
@@ -43,6 +48,82 @@ const UserManagement: React.FC = () => {
   const [coinAmount, setCoinAmount] = useState('');
   const [coinDescription, setCoinDescription] = useState('');
   const [isCoinsDialogOpen, setIsCoinsDialogOpen] = useState(false);
+  
+  // Create user state
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserDisplayName, setNewUserDisplayName] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'user' | 'teacher' | 'admin'>('user');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+
+  const handleCreateUser = async () => {
+    if (!newUserEmail || !newUserPassword) {
+      toast.error('Email and password are required');
+      return;
+    }
+    
+    if (newUserPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    
+    setIsCreatingUser(true);
+    
+    try {
+      // Create user via Supabase Auth admin API (requires service role)
+      // Since we can't use service role from client, we'll use signUp
+      const { data, error } = await supabase.auth.signUp({
+        email: newUserEmail,
+        password: newUserPassword,
+        options: {
+          data: {
+            display_name: newUserDisplayName || newUserEmail.split('@')[0]
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      if (data.user) {
+        // Update role if not default 'user'
+        if (newUserRole !== 'user') {
+          // Delete default role and insert new one
+          await supabase
+            .from('user_roles')
+            .delete()
+            .eq('user_id', data.user.id);
+            
+          await supabase
+            .from('user_roles')
+            .insert({
+              user_id: data.user.id,
+              role: newUserRole
+            });
+        }
+        
+        toast.success(`User ${newUserEmail} created successfully!`);
+        setIsCreateUserOpen(false);
+        setNewUserEmail('');
+        setNewUserPassword('');
+        setNewUserDisplayName('');
+        setNewUserRole('user');
+        
+        // Refetch users
+        queryClient.invalidateQueries({ queryKey: ['all-users'] });
+        refetch();
+      }
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      if (error.message?.includes('already registered')) {
+        toast.error('This email is already registered');
+      } else {
+        toast.error(`Failed to create user: ${error.message}`);
+      }
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
 
   const handleAddCoins = async () => {
     if (!selectedUser || !coinAmount) return;
@@ -121,14 +202,116 @@ const UserManagement: React.FC = () => {
           <p className="text-muted-foreground">Manage user accounts and permissions</p>
         </div>
         
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 w-[250px]"
-          />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 w-[200px]"
+            />
+          </div>
+          
+          {/* Create User Dialog */}
+          <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <UserPlus className="w-4 h-4" />
+                Create User
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New User</DialogTitle>
+                <DialogDescription>
+                  Create a new user account with email and password
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email *
+                  </Label>
+                  <Input
+                    type="email"
+                    placeholder="user@example.com"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Password *
+                  </Label>
+                  <Input
+                    type="password"
+                    placeholder="Min 6 characters"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <UserIcon className="w-4 h-4" />
+                    Display Name
+                  </Label>
+                  <Input
+                    placeholder="Optional - defaults to email username"
+                    value={newUserDisplayName}
+                    onChange={(e) => setNewUserDisplayName(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select value={newUserRole} onValueChange={(v: any) => setNewUserRole(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">
+                        <div className="flex items-center gap-2">
+                          <UserIcon className="w-4 h-4" />
+                          User (Learner)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="teacher">
+                        <div className="flex items-center gap-2">
+                          <GraduationCap className="w-4 h-4" />
+                          Teacher
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="admin">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4" />
+                          Admin
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateUserOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleCreateUser}
+                  disabled={!newUserEmail || !newUserPassword || isCreatingUser}
+                >
+                  {isCreatingUser && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  Create User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 

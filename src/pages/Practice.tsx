@@ -393,6 +393,18 @@ const Practice = () => {
                         coinChange={coinChange}
                       />
 
+                      {/* Feedback messages */}
+                      {analysisResult.feedback && analysisResult.feedback.length > 0 && (
+                        <div className="p-4 rounded-xl bg-secondary/50 border border-border/50 text-sm space-y-1">
+                          {analysisResult.feedback.map((fb, i) => (
+                            <p key={i} className="text-muted-foreground flex items-start gap-2">
+                              <span className="text-primary mt-0.5">💡</span>
+                              <span>{fb}</span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Expected phrase */}
                       <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
                         <p className="text-sm text-muted-foreground mb-1">Expected:</p>
