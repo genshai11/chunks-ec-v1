@@ -173,8 +173,8 @@ const Practice = () => {
     const latency = Date.now() - recordingStartTime;
     
     try {
-      await recorder.stopRecording();
-      const audioBase64 = await recorder.getAudioBase64();
+      const audioData = await recorder.stopRecording();
+      const audioBase64 = audioData.audioBase64;
       
       if (!audioBase64) {
         throw new Error("No audio recorded");
@@ -644,7 +644,7 @@ const Practice = () => {
                             <div className="h-2 bg-secondary rounded-full overflow-hidden max-w-md mx-auto">
                               <motion.div 
                                 className="h-full bg-primary"
-                                style={{ width: `${recorder.volume}%` }}
+                                style={{ width: `${recorder.getAudioLevel() * 100}%` }}
                               />
                             </div>
                           </motion.div>

@@ -341,7 +341,7 @@ export const PracticeModal = ({
                 </div>
                 <AudioWaveform 
                   isRecording={recorder.isRecording} 
-                  audioLevel={recorder.volume / 100} 
+                  audioLevel={recorder.getAudioLevel()} 
                   className="mx-auto"
                 />
               </motion.div>
@@ -414,26 +414,29 @@ export const PracticeModal = ({
 
                 {/* Metrics Breakdown */}
                 <div className="grid grid-cols-5 gap-2 mb-4">
-                  {Object.entries(analysisResult.metrics).map(([key, value], index) => (
-                    <motion.div 
-                      key={key} 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 * index }}
-                      className="text-center p-3 rounded-xl bg-secondary/50 border border-border/50"
-                    >
-                      <div className="text-xs text-muted-foreground mb-1">
-                        {metricLabels[key] || key}
-                      </div>
-                      <div className={`text-2xl font-bold ${
-                        value >= 80 ? "text-success" 
-                          : value >= 60 ? "text-warning" 
-                          : "text-destructive"
-                      }`}>
-                        {value}%
-                      </div>
-                    </motion.div>
-                  ))}
+                {Object.entries(analysisResult.metrics).map(([key, value], index) => {
+                    const numValue = typeof value === 'number' ? value : 0;
+                    return (
+                      <motion.div 
+                        key={key} 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 * index }}
+                        className="text-center p-3 rounded-xl bg-secondary/50 border border-border/50"
+                      >
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {metricLabels[key] || key}
+                        </div>
+                        <div className={`text-2xl font-bold ${
+                          numValue >= 80 ? "text-success" 
+                            : numValue >= 60 ? "text-warning" 
+                            : "text-destructive"
+                        }`}>
+                          {numValue}%
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
 
                 {/* Feedback */}
