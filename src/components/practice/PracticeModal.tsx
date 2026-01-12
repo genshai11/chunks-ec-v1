@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, 
@@ -13,8 +13,7 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  Flame,
-  Trophy
+  Flame
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -23,7 +22,6 @@ import { CoinBadge } from "@/components/ui/CoinBadge";
 import { AudioWaveform } from "@/components/ui/AudioWaveform";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
-import { useTranscribe, useAnalyzeSpeech, useSavePractice, SpeechAnalysisResult } from "@/hooks/usePractice";
 import { useCoinConfig } from "@/hooks/useCoinWallet";
 import { useWallet } from "@/hooks/useUserData";
 import { toast } from "sonner";
@@ -41,6 +39,7 @@ interface PracticeModalProps {
   lessonName: string;
   category: string;
   items: PracticeItem[];
+  startIndex?: number;
 }
 
 export const PracticeModal = ({
@@ -50,13 +49,13 @@ export const PracticeModal = ({
   lessonName,
   category,
   items,
+  startIndex = 0,
 }: PracticeModalProps) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(startIndex);
   const [showEnglish, setShowEnglish] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<SpeechAnalysisResult | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [coinChange, setCoinChange] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
   const [sessionStats, setSessionStats] = useState({ 
     completed: 0, 
     totalScore: 0, 
@@ -65,9 +64,6 @@ export const PracticeModal = ({
 
   const recorder = useAudioRecorder();
   const tts = useTextToSpeech();
-  const transcribe = useTranscribe();
-  const analyze = useAnalyzeSpeech();
-  const savePractice = useSavePractice();
   const { data: coinConfig } = useCoinConfig();
   const { data: wallet, refetch: refetchWallet } = useWallet();
 
@@ -86,14 +82,20 @@ export const PracticeModal = ({
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
-      setCurrentIndex(0);
+      setCurrentIndex(startIndex);
       setShowEnglish(false);
       setAnalysisResult(null);
       setCoinChange(null);
       setSessionStats({ completed: 0, totalScore: 0, coinsEarned: 0 });
       recorder.resetRecording();
     }
-  }, [isOpen]);
+  }, [isOpen, startIndex, recorder]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentIndex(startIndex);
+    }
+  }, [isOpen, startIndex]);
 
   const handleListen = () => {
     if (tts.isSpeaking) {
@@ -107,7 +109,6 @@ export const PracticeModal = ({
     try {
       setAnalysisResult(null);
       setCoinChange(null);
-      setRecordingStartTime(Date.now());
       await recorder.startRecording();
     } catch (error) {
       toast.error("Could not access microphone. Please check permissions.");
@@ -116,39 +117,35 @@ export const PracticeModal = ({
 
   const handleStopRecording = async () => {
     setIsAnalyzing(true);
-    const latency = Date.now() - recordingStartTime;
     
     try {
-      await recorder.stopRecording();
-      const audioBase64 = await recorder.getAudioBase64();
+      console.log('⏹️ Stopping recording...');
       
-      if (!audioBase64) {
-        throw new Error("No audio recorded");
-      }
-
-      // Transcribe the audio
-      const transcriptionResult = await transcribe.mutateAsync(audioBase64);
+      // Stop recording - this now returns audio data directly when onstop completes
+      const audioData = await recorder.stopRecording();
       
-      // Calculate metrics based on recording
-      const metrics = {
-        volume: -45 + (recorder.volume / 100) * 25,
-        speechRate: transcriptionResult.wordsPerMinute,
-        pauseCount: Math.floor(Math.random() * 3),
-        longestPause: Math.floor(Math.random() * 1000),
-        latency: Math.min(latency, 3000),
-        endIntensity: Math.min(100, 60 + recorder.volume * 0.4)
-      };
-
-      // Analyze speech
-      const result = await analyze.mutateAsync({
-        transcription: transcriptionResult.transcript,
-        metrics
+      console.log('✅ Recording stopped, got audio data:', {
+        bufferLength: audioData.audioBuffer.length,
+        sampleRate: audioData.sampleRate,
+        hasBase64: !!audioData.audioBase64
       });
+      
+      // Analyze audio using working implementation from chunks-voice-energy
+      const { analyzeAudioAsync } = await import('@/lib/audioAnalysis');
+      
+      console.log('🔄 Starting audio analysis...');
+      const analysisResult = await analyzeAudioAsync(
+        audioData.audioBuffer,
+        audioData.sampleRate,
+        audioData.audioBase64 || undefined
+      );
+      
+      console.log('✅ Analysis complete:', analysisResult);
 
-      setAnalysisResult(result);
+      setAnalysisResult(analysisResult);
 
       // Calculate coin reward/penalty
-      const score = result.score;
+      const score = analysisResult.overallScore;
       let coins = 0;
       
       if (coinConfig) {
@@ -169,16 +166,6 @@ export const PracticeModal = ({
 
       setCoinChange(coins);
 
-      // Save practice result (includes streak + badge updates)
-      await savePractice.mutateAsync({
-        lessonId,
-        category,
-        itemIndex: currentIndex,
-        score,
-        coinsEarned: coins,
-        metrics: result.metrics
-      });
-
       // Update session stats
       setSessionStats(prev => ({
         completed: prev.completed + 1,
@@ -191,7 +178,13 @@ export const PracticeModal = ({
 
     } catch (error: any) {
       console.error("Error analyzing speech:", error);
-      toast.error(error.message || "Failed to analyze speech");
+      const errorMessage = error.message || "Failed to analyze speech. Please try recording again.";
+      toast.error(errorMessage, {
+        description: "Make sure you spoke clearly and your microphone is working."
+      });
+      
+      // Reset recording for retry
+      recorder.resetRecording();
     } finally {
       setIsAnalyzing(false);
     }
@@ -205,7 +198,6 @@ export const PracticeModal = ({
       setShowEnglish(false);
       recorder.resetRecording();
     } else {
-      // Show session summary
       const avgScore = sessionStats.completed > 0 
         ? Math.round(sessionStats.totalScore / sessionStats.completed) 
         : 0;
@@ -237,9 +229,9 @@ export const PracticeModal = ({
 
   const isLastItem = currentIndex === items.length - 1;
   const scoreColor = analysisResult 
-    ? analysisResult.score >= 80 
+    ? analysisResult.overallScore >= 80 
       ? "text-success" 
-      : analysisResult.score >= 60 
+      : analysisResult.overallScore >= 60 
         ? "text-warning" 
         : "text-destructive"
     : "";
@@ -266,7 +258,7 @@ export const PracticeModal = ({
                 <Badge variant="secondary">{category}</Badge>
                 {sessionStats.completed > 0 && (
                   <span className="flex items-center gap-1">
-                    <Trophy className="w-3 h-3" />
+                    <Flame className="w-3 h-3" />
                     Avg: {Math.round(sessionStats.totalScore / sessionStats.completed)}%
                   </span>
                 )}
@@ -326,7 +318,7 @@ export const PracticeModal = ({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="text-center mt-4 p-4 rounded-xl bg-primary/5 border border-primary/20"
+                    className="mt-4 text-center p-4 rounded-xl bg-primary/5 border border-primary/20"
                   >
                     <p className="text-lg text-primary font-medium">{currentItem.english}</p>
                   </motion.div>
@@ -380,10 +372,10 @@ export const PracticeModal = ({
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", bounce: 0.5 }}
-                    className={`inline-flex flex-col items-center justify-center w-32 h-32 rounded-full ${
-                      analysisResult.score >= 80 
+                    className={`inline-flex flex-col items-center justify-center w-32 h-32 rounded-2xl ${
+                      analysisResult.overallScore >= 80 
                         ? "bg-success/10 border-4 border-success/30" 
-                        : analysisResult.score >= 60
+                        : analysisResult.overallScore >= 60
                           ? "bg-warning/10 border-4 border-warning/30"
                           : "bg-destructive/10 border-4 border-destructive/30"
                     }`}
@@ -394,10 +386,10 @@ export const PracticeModal = ({
                       transition={{ delay: 0.3 }}
                       className={`text-4xl font-display font-bold ${scoreColor}`}
                     >
-                      {analysisResult.score}
+                      {analysisResult.overallScore}
                     </motion.span>
                     <span className="text-xs text-muted-foreground">points</span>
-                    {analysisResult.score >= 80 && (
+                    {analysisResult.overallScore >= 80 && (
                       <CheckCircle2 className="w-5 h-5 text-success mt-1" />
                     )}
                   </motion.div>
@@ -408,7 +400,7 @@ export const PracticeModal = ({
                       initial={{ y: -10, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ delay: 0.5 }}
-                      className={`mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                      className={`mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${
                         coinChange > 0 
                           ? "bg-success/10 text-success" 
                           : "bg-destructive/10 text-destructive"
@@ -433,44 +425,24 @@ export const PracticeModal = ({
                       <div className="text-xs text-muted-foreground mb-1">
                         {metricLabels[key] || key}
                       </div>
-                      <div className={`text-lg font-bold ${
+                      <div className={`text-2xl font-bold ${
                         value >= 80 ? "text-success" 
                           : value >= 60 ? "text-warning" 
                           : "text-destructive"
                       }`}>
                         {value}%
                       </div>
-                      <div className="h-1.5 bg-secondary rounded-full mt-2 overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${value}%` }}
-                          transition={{ delay: 0.3 + 0.1 * index, duration: 0.5 }}
-                          className={`h-full rounded-full ${
-                            value >= 80 ? "bg-success" 
-                              : value >= 60 ? "bg-warning" 
-                              : "bg-destructive"
-                          }`}
-                        />
-                      </div>
                     </motion.div>
                   ))}
                 </div>
 
-                {/* Transcription */}
-                {analysisResult.transcription && (
-                  <div className="p-3 rounded-xl bg-secondary/30 text-sm mb-4">
-                    <p className="text-xs text-muted-foreground mb-1">You said:</p>
-                    <p className="text-foreground italic">"{analysisResult.transcription}"</p>
-                  </div>
-                )}
-
                 {/* Feedback */}
-                {analysisResult.feedback.length > 0 && (
-                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-sm">
+                {analysisResult.feedback && analysisResult.feedback.length > 0 && (
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-sm mb-6">
                     {analysisResult.feedback.map((fb, i) => (
                       <p key={i} className="text-muted-foreground flex items-start gap-2">
-                        <span className="text-primary">💡</span>
-                        {fb}
+                        <span className="text-primary mt-0.5">💡</span>
+                        <span>{fb}</span>
                       </p>
                     ))}
                   </div>
@@ -559,7 +531,7 @@ export const PracticeModal = ({
               className="gap-2"
             >
               {isLastItem ? "Complete" : "Next"}
-              <ChevronRight size={20} />
+              <ChevronRight size={20} className="ml-2" />
             </Button>
           </div>
         </motion.div>

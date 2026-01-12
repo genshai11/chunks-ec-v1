@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { 
-  BookOpen, 
-  Target, 
-  Flame, 
-  TrendingUp, 
+import {
+  BookOpen,
+  Target,
+  Flame,
+  TrendingUp,
   Clock,
   Mic,
   Loader2,
@@ -20,6 +21,7 @@ import { CategoryTabs } from "@/components/dashboard/CategoryTabs";
 import { PracticeItemCard } from "@/components/dashboard/PracticeItemCard";
 import { PracticeModal } from "@/components/practice/PracticeModal";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/hooks/useUserData";
 import { useCourses, useEnrollments, useCourseLessons, useEnrollInCourse, Lesson } from "@/hooks/useCourses";
@@ -35,40 +37,43 @@ const Index = () => {
   const { data: userStats } = useUserStats();
   const enrollInCourse = useEnrollInCourse();
   const tts = useTextToSpeech();
-  
+
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const [activeCategory, setActiveCategory] = useState("Vocab");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isPracticeOpen, setIsPracticeOpen] = useState(false);
+
 
   // Get user progress for selected lesson
   const { data: lessonProgress } = useUserProgress(selectedLesson?.id);
 
   // Get enrolled course IDs
   const enrolledCourseIds = enrollments?.map(e => e.course_id) || [];
-  
+
   // Find first enrolled course for lessons display
   const firstEnrolledCourse = courses?.find(c => enrolledCourseIds.includes(c.id));
-  
+
   // Fetch lessons for the selected/first enrolled course
   const { data: lessons, isLoading: lessonsLoading } = useCourseLessons(
     selectedCourseId || firstEnrolledCourse?.id || null
   );
 
   // Get categories from selected lesson
-  const lessonCategories = selectedLesson?.categories 
+  const lessonCategories = selectedLesson?.categories
     ? Object.entries(selectedLesson.categories).map(([name, items]) => ({
-        id: name.toLowerCase(),
-        name,
-        count: (items as any[]).length
-      }))
+      id: name.toLowerCase(),
+      name,
+      count: (items as any[]).length
+    }))
     : [];
 
+  const normalizedActiveCategory = activeCategory || lessonCategories[0]?.name || "";
+
   // Get practice items for active category with mastery status
-  const practiceItems = selectedLesson?.categories?.[activeCategory] || [];
+  const practiceItems = selectedLesson?.categories?.[normalizedActiveCategory] || [];
   const practiceItemsWithMastery = practiceItems.map((item: any, index: number) => {
     const progress = lessonProgress?.find(
-      p => p.category === activeCategory && p.item_index === index
+      p => p.category === normalizedActiveCategory && p.item_index === index
     );
     return {
       ...item,
@@ -78,7 +83,26 @@ const Index = () => {
     };
   });
 
+  useEffect(() => {
+    if (!selectedCourseId && firstEnrolledCourse?.id) {
+      setSelectedCourseId(firstEnrolledCourse.id);
+    }
+  }, [firstEnrolledCourse, selectedCourseId]);
+
+  useEffect(() => {
+    if (lessons?.length && !selectedLesson) {
+      setSelectedLesson(lessons[0]);
+    }
+  }, [lessons, selectedLesson]);
+
+  useEffect(() => {
+    if (!activeCategory && lessonCategories.length) {
+      setActiveCategory(lessonCategories[0].name);
+    }
+  }, [activeCategory, lessonCategories]);
+
   const isLoading = coursesLoading || enrollmentsLoading;
+
 
   if (isLoading) {
     return (
@@ -91,7 +115,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      
+
       <main className="lg:ml-64 p-4 lg:p-8 pt-20 lg:pt-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -101,15 +125,16 @@ const Index = () => {
             className="mb-8"
           >
             <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground mb-2">
-              Welcome back, {profile?.display_name || 'Learner'}! 👋
+              Welcome back, {profile?.display_name || "Learner"}
             </h1>
             <p className="text-muted-foreground">
-              Continue your English learning journey. You're doing great!
+              Keep your streak alive and practice in short bursts.
             </p>
+
           </motion.div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatsCard
               title="Current Streak"
               value={`${userStats?.streak || 0} days`}
@@ -139,10 +164,12 @@ const Index = () => {
             />
           </div>
 
+
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-6">
             {/* Courses & Lessons */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="space-y-6">
+
               {/* Available Courses */}
               <motion.section
                 initial={{ opacity: 0, y: 20 }}
@@ -151,12 +178,12 @@ const Index = () => {
               >
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-display font-semibold text-foreground">
-                    {enrolledCourseIds.length > 0 ? 'Your Courses' : 'Available Courses'}
+                    {enrolledCourseIds.length > 0 ? "Your Courses" : "Available Courses"}
                   </h2>
                 </div>
-                
+
                 {courses?.length === 0 ? (
-                  <div className="p-8 rounded-2xl border border-dashed border-border/50 text-center">
+                  <div className="p-10 rounded-2xl border border-dashed border-border/50 text-center bg-gradient-to-br from-primary/5 via-background to-transparent">
                     <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">
                       No courses available yet. Check back soon!
@@ -171,7 +198,7 @@ const Index = () => {
                           key={course.id}
                           code={course.code}
                           name={course.name}
-                          description={course.description || ''}
+                          description={course.description || ""}
                           lessonsCount={15}
                           studentsCount={0}
                           enrolled={isEnrolled}
@@ -183,6 +210,7 @@ const Index = () => {
                   </div>
                 )}
               </motion.section>
+
 
               {/* Lessons */}
               {(selectedCourseId || firstEnrolledCourse) && (
@@ -199,7 +227,7 @@ const Index = () => {
                       {lessons?.length || 0} lessons
                     </span>
                   </div>
-                  
+
                   {lessonsLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -221,12 +249,11 @@ const Index = () => {
                             name,
                             count: (items as any[]).length
                           }))}
-                          deadline={lesson.deadline_date ? new Date(lesson.deadline_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : undefined}
+                          deadline={lesson.deadline_date ? new Date(lesson.deadline_date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : undefined}
                           status="available"
                           onClick={() => {
                             setSelectedLesson(lesson);
-                            const cats = Object.keys(lesson.categories || {});
-                            if (cats.length > 0) setActiveCategory(cats[0]);
+                            setActiveCategory(null);
                           }}
                         />
                       ))}
@@ -234,6 +261,7 @@ const Index = () => {
                   )}
                 </motion.section>
               )}
+
             </div>
 
             {/* Practice Panel */}
@@ -244,27 +272,59 @@ const Index = () => {
               className="space-y-6"
             >
               {/* Quick Practice */}
-              <div className="p-6 rounded-2xl bg-card border border-border/50">
-                <h3 className="font-display font-semibold text-lg mb-4">
-                  {selectedLesson ? selectedLesson.lesson_name : 'Quick Practice'}
-                </h3>
-                
+              <div className="p-6 rounded-2xl bg-card border border-border/50 sticky top-24">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-display font-semibold text-lg">
+                    {selectedLesson ? "Quick Practice" : "Quick Practice"}
+                  </h3>
+                  {selectedLesson && (
+                    <Badge variant="outline" className="text-xs">
+                      {normalizedActiveCategory || "Category"}
+                    </Badge>
+                  )}
+                </div>
                 {selectedLesson ? (
                   <>
-                    <CategoryTabs
-                      categories={lessonCategories}
-                      activeCategory={activeCategory.toLowerCase()}
-                      onSelect={(cat) => {
-                        const originalCat = Object.keys(selectedLesson.categories || {}).find(
-                          k => k.toLowerCase() === cat
-                        );
-                        if (originalCat) setActiveCategory(originalCat);
-                      }}
-                    />
-                    <div className="mt-4 space-y-2 max-h-[300px] overflow-y-auto">
-                      {practiceItemsWithMastery.slice(0, 5).map((item: any, i: number) => (
+                    <div className="rounded-xl border border-border/50 bg-secondary/30 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Lesson</p>
+                          <p className="font-semibold text-foreground">
+                            {selectedLesson.lesson_name}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setIsPracticeOpen(true)}
+                          className="gap-2"
+                        >
+                          <Mic size={14} />
+                          Start
+                        </Button>
+                      </div>
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        {practiceItems.length} items • {practiceItemsWithMastery.filter((i: any) => i.mastered).length} mastered
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <CategoryTabs
+                        categories={lessonCategories}
+                        activeCategory={normalizedActiveCategory.toLowerCase()}
+                        onSelect={(cat) => {
+                          const originalCat = Object.keys(selectedLesson.categories || {}).find(
+                            k => k.toLowerCase() === cat
+                          );
+                          if (originalCat) setActiveCategory(originalCat);
+                        }}
+                      />
+                    </div>
+
+                    <div className="mt-4 space-y-2 max-h-[280px] overflow-y-auto">
+                      {practiceItemsWithMastery.slice(0, 4).map((item: any, i: number) => (
                         <PracticeItemCard
-                          key={i}
+                          key={`${normalizedActiveCategory}-${i}`}
                           english={item.English}
                           vietnamese={item.Vietnamese}
                           mastered={item.mastered}
@@ -273,7 +333,7 @@ const Index = () => {
                         />
                       ))}
                     </div>
-                    <Button 
+                    <Button
                       className="w-full mt-4 gradient-primary text-primary-foreground"
                       onClick={() => setIsPracticeOpen(true)}
                     >
@@ -291,6 +351,7 @@ const Index = () => {
                 )}
               </div>
 
+
               {/* Recent Activity */}
               <div className="p-6 rounded-2xl bg-card border border-border/50">
                 <div className="flex items-center gap-2 mb-4">
@@ -302,23 +363,21 @@ const Index = () => {
                 {userStats?.recentHistory && userStats.recentHistory.length > 0 ? (
                   <div className="space-y-3">
                     {userStats.recentHistory.slice(0, 5).map((history: any, i: number) => (
-                      <div 
-                        key={i} 
+                      <div
+                        key={i}
                         className="flex items-center justify-between py-2 border-b border-border/30 last:border-0"
                       >
                         <div>
-                          <div className={`text-sm font-medium ${
-                            history.score >= 70 ? "text-success" : "text-muted-foreground"
-                          }`}>
+                          <div className={`text-sm font-medium ${history.score >= 70 ? "text-success" : "text-muted-foreground"
+                            }`}>
                             Score: {history.score}%
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {formatDistanceToNow(new Date(history.practiced_at), { addSuffix: true })}
                           </div>
                         </div>
-                        <div className={`text-sm font-medium ${
-                          history.coins_earned >= 0 ? "text-success" : "text-destructive"
-                        }`}>
+                        <div className={`text-sm font-medium ${history.coins_earned >= 0 ? "text-success" : "text-destructive"
+                          }`}>
                           {history.coins_earned >= 0 ? "+" : ""}{history.coins_earned} C
                         </div>
                       </div>
@@ -344,7 +403,7 @@ const Index = () => {
           onClose={() => setIsPracticeOpen(false)}
           lessonId={selectedLesson.id}
           lessonName={selectedLesson.lesson_name}
-          category={activeCategory}
+          category={normalizedActiveCategory}
           items={practiceItemsWithMastery.map((item: any) => ({
             english: item.English,
             vietnamese: item.Vietnamese,
@@ -352,6 +411,7 @@ const Index = () => {
           }))}
         />
       )}
+
     </div>
   );
 };

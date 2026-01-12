@@ -36,7 +36,7 @@ const bottomItems = [
 ];
 
 export const Sidebar = () => {
-  const { isAdmin, isTeacher, signOut } = useAuth();
+  const { isAdmin, signOut } = useAuth();
   const { data: wallet } = useWallet();
   const { data: streak } = useStreak();
   const navigate = useNavigate();
@@ -136,7 +136,7 @@ export const Sidebar = () => {
         ))}
         
         {/* Admin Link */}
-        {(isAdmin || isTeacher) && (
+        {isAdmin && (
           <Link to="/admin" onClick={() => setIsMobileOpen(false)}>
             <motion.div
               whileHover={{ x: 4 }}

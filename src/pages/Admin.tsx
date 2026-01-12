@@ -17,10 +17,10 @@ import CourseManagement from '@/components/admin/CourseManagement';
 import LessonManagement from '@/components/admin/LessonManagement';
 import UserManagement from '@/components/admin/UserManagement';
 import CoinConfigPanel from '@/components/admin/CoinConfigPanel';
-import ScoringConfigPanel from '@/components/admin/ScoringConfigPanel';
+import ScoreWeightSettings from '@/pages/ScoreWeightSettings';
 
 const Admin: React.FC = () => {
-  const { isAdmin, isTeacher, isLoading } = useAuth();
+  const { isAdmin, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('courses');
 
   if (isLoading) {
@@ -31,7 +31,7 @@ const Admin: React.FC = () => {
     );
   }
 
-  if (!isAdmin && !isTeacher) {
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
@@ -65,22 +65,18 @@ const Admin: React.FC = () => {
               <BookOpen className="w-4 h-4" />
               Lessons
             </TabsTrigger>
-            {isAdmin && (
-              <>
-                <TabsTrigger value="users" className="gap-2">
-                  <Users className="w-4 h-4" />
-                  Users
-                </TabsTrigger>
-                <TabsTrigger value="coins" className="gap-2">
-                  <Coins className="w-4 h-4" />
-                  Coins
-                </TabsTrigger>
-                <TabsTrigger value="scoring" className="gap-2">
-                  <Activity className="w-4 h-4" />
-                  Scoring
-                </TabsTrigger>
-              </>
-            )}
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="w-4 h-4" />
+              Users
+            </TabsTrigger>
+            <TabsTrigger value="coins" className="gap-2">
+              <Coins className="w-4 h-4" />
+              Coins
+            </TabsTrigger>
+            <TabsTrigger value="scoring" className="gap-2">
+              <Activity className="w-4 h-4" />
+              Scoring
+            </TabsTrigger>
           </TabsList>
 
           <motion.div
@@ -97,21 +93,17 @@ const Admin: React.FC = () => {
               <LessonManagement />
             </TabsContent>
 
-            {isAdmin && (
-              <>
-                <TabsContent value="users" className="mt-0">
-                  <UserManagement />
-                </TabsContent>
+            <TabsContent value="users" className="mt-0">
+              <UserManagement />
+            </TabsContent>
 
-                <TabsContent value="coins" className="mt-0">
-                  <CoinConfigPanel />
-                </TabsContent>
+            <TabsContent value="coins" className="mt-0">
+              <CoinConfigPanel />
+            </TabsContent>
 
-                <TabsContent value="scoring" className="mt-0">
-                  <ScoringConfigPanel />
-                </TabsContent>
-              </>
-            )}
+            <TabsContent value="scoring" className="mt-0">
+              <ScoreWeightSettings />
+            </TabsContent>
           </motion.div>
         </Tabs>
       </main>
