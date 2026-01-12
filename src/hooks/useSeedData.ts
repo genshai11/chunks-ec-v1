@@ -23,27 +23,39 @@ export const useSeedERELCourse = () => {
         .eq('code', 'EREL')
         .maybeSingle();
 
+      let courseId: string;
+
       if (existingCourse) {
-        throw new Error('EREL course already exists');
+        // Course exists, check if lessons already exist
+        const { data: existingLessons } = await supabase
+          .from('lessons')
+          .select('id')
+          .eq('course_id', existingCourse.id);
+
+        if (existingLessons && existingLessons.length > 0) {
+          throw new Error('EREL lessons already exist');
+        }
+        courseId = existingCourse.id;
+      } else {
+        // Create the course
+        const { data: course, error: courseError } = await supabase
+          .from('courses')
+          .insert({
+            code: EREL_COURSE.code,
+            name: EREL_COURSE.name,
+            description: EREL_COURSE.description,
+            is_active: EREL_COURSE.is_active
+          })
+          .select()
+          .single();
+
+        if (courseError) throw courseError;
+        courseId = course.id;
       }
-
-      // Create the course
-      const { data: course, error: courseError } = await supabase
-        .from('courses')
-        .insert({
-          code: EREL_COURSE.code,
-          name: EREL_COURSE.name,
-          description: EREL_COURSE.description,
-          is_active: EREL_COURSE.is_active
-        })
-        .select()
-        .single();
-
-      if (courseError) throw courseError;
 
       // Create all lessons from the imported JSON data
       const lessonsToInsert = EREL_LESSONS_DATA.map((lesson, index) => ({
-        course_id: course.id,
+        course_id: courseId,
         lesson_name: lesson.lesson_name,
         order_index: index + 1,
         categories: lesson.categories as unknown as Json
@@ -55,7 +67,7 @@ export const useSeedERELCourse = () => {
 
       if (lessonsError) throw lessonsError;
 
-      return { course, lessonsCount: lessonsToInsert.length };
+      return { courseId, lessonsCount: lessonsToInsert.length };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['courses'] });
