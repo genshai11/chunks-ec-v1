@@ -15,6 +15,7 @@ import Progress from "./pages/Progress";
 import Practice from "./pages/Practice";
 import Vocabulary from "./pages/Vocabulary";
 import NotFound from "./pages/NotFound";
+import ProjectIntroduction from "./pages/ProjectIntroduction";
 
 const queryClient = new QueryClient();
 
@@ -27,69 +28,77 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route 
-              path="/" 
+            <Route
+              path="/"
               element={
                 <ProtectedRoute>
                   <Index />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/courses" 
+            <Route
+              path="/courses"
               element={
                 <ProtectedRoute>
                   <Courses />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/practice" 
+            <Route
+              path="/practice"
               element={
                 <ProtectedRoute>
                   <Practice />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/vocabulary" 
+            <Route
+              path="/vocabulary"
               element={
                 <ProtectedRoute>
                   <Vocabulary />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
+            <Route
               path="/leaderboard"
               element={
                 <ProtectedRoute>
                   <Leaderboard />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/profile" 
+            <Route
+              path="/profile"
               element={
                 <ProtectedRoute>
                   <Profile />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/progress" 
+            <Route
+              path="/progress"
               element={
                 <ProtectedRoute>
                   <Progress />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/admin" 
+            <Route
+              path="/admin"
               element={
                 <ProtectedRoute requireTeacher>
                   <Admin />
                 </ProtectedRoute>
-              } 
+              }
+            />
+            <Route
+              path="/introduction"
+              element={
+                <ProtectedRoute requireTeacher>
+                  <ProjectIntroduction />
+                </ProtectedRoute>
+              }
             />
             <Route path="*" element={<NotFound />} />
           </Routes>

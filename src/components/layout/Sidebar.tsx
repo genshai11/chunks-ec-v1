@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { 
-  Home, 
-  BookOpen, 
-  Trophy, 
-  User, 
+import {
+  Home,
+  BookOpen,
+  Trophy,
+  User,
   ChevronRight,
   TrendingUp,
   Shield,
@@ -13,7 +13,8 @@ import {
   Mic,
   Menu,
   X,
-  Flame
+  Flame,
+  Info
 } from "lucide-react";
 import { CoinBadge } from "@/components/ui/CoinBadge";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ import logo from "@/assets/logo.png";
 
 const menuItems = [
   { id: "dashboard", path: "/", label: "Dashboard", icon: Home },
+  { id: "introduction", path: "/introduction", label: "Project Info", icon: Info },
   { id: "courses", path: "/courses", label: "Courses", icon: BookOpen },
   { id: "practice", path: "/practice", label: "Practice", icon: Mic },
   { id: "progress", path: "/progress", label: "Progress", icon: TrendingUp },
@@ -75,7 +77,7 @@ export const Sidebar = () => {
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <Link to="/" onClick={() => setIsMobileOpen(false)}>
-          <motion.div 
+          <motion.div
             className="flex items-center gap-3"
             whileHover={{ scale: 1.02 }}
           >
@@ -90,14 +92,14 @@ export const Sidebar = () => {
           <p className="text-xs text-muted-foreground mb-2">Your Balance</p>
           <CoinBadge amount={wallet?.balance || 0} size="lg" />
         </div>
-        
+
         <div className="pt-3 border-t border-border/50">
           <div className="flex items-center gap-2">
-            <Flame 
-              size={18} 
+            <Flame
+              size={18}
               className={cn(
                 isStreakActive ? "text-orange-400 animate-pulse" : "text-muted-foreground"
-              )} 
+              )}
             />
             <span className={cn(
               "font-bold",
@@ -134,7 +136,7 @@ export const Sidebar = () => {
             </motion.div>
           </Link>
         ))}
-        
+
         {/* Admin Link */}
         {isAdmin && (
           <Link to="/admin" onClick={() => setIsMobileOpen(false)}>
@@ -177,7 +179,7 @@ export const Sidebar = () => {
             </motion.div>
           </Link>
         ))}
-        
+
         <Button
           variant="ghost"
           onClick={handleSignOut}
@@ -197,14 +199,14 @@ export const Sidebar = () => {
         <Link to="/">
           <img src={logo} alt="CHUNKS" className="h-8 w-auto" />
         </Link>
-        
+
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Flame 
-              size={16} 
+            <Flame
+              size={16}
               className={cn(
                 isStreakActive ? "text-orange-400" : "text-muted-foreground"
-              )} 
+              )}
             />
             <span className={cn(
               "text-sm font-bold",
@@ -213,9 +215,9 @@ export const Sidebar = () => {
               {currentStreak}
             </span>
           </div>
-          
+
           <CoinBadge amount={wallet?.balance || 0} size="sm" />
-          
+
           <Button
             variant="ghost"
             size="icon"
