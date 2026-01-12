@@ -32,10 +32,19 @@ export interface Enrollment {
   id: string;
   user_id: string;
   course_id: string;
+  class_id: string | null;
   enrolled_at: string;
   start_date: string | null;
   status: string;
   completed_at: string | null;
+  courses?: Course;
+  course_classes?: {
+    id: string;
+    class_code: string;
+    class_name: string;
+    start_date: string;
+    schedule_days: string[];
+  };
 }
 
 export const useCourses = () => {
@@ -97,11 +106,25 @@ export const useEnrollments = () => {
       
       const { data, error } = await supabase
         .from('enrollments')
-        .select('*, courses(*)')
+        .select(`
+          *,
+          courses(*),
+          course_classes:class_id(id, class_code, class_name, start_date, schedule_days)
+        `)
         .eq('user_id', user.id);
 
       if (error) throw error;
-      return data;
+      
+      // Transform schedule_days from jsonb to string array
+      return (data || []).map(e => ({
+        ...e,
+        course_classes: e.course_classes ? {
+          ...e.course_classes,
+          schedule_days: Array.isArray(e.course_classes.schedule_days) 
+            ? e.course_classes.schedule_days 
+            : ['monday', 'wednesday', 'friday']
+        } : null
+      })) as Enrollment[];
     },
     enabled: !!user?.id
   });

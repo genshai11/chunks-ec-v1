@@ -211,3 +211,114 @@ export const useClassEnrollments = (classId?: string) => {
     enabled: !!classId
   });
 };
+
+// Admin: Add user to a class
+export const useAddUserToClass = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, classId, courseId }: { userId: string; classId: string; courseId: string }) => {
+      // Get the class start date
+      const { data: classData, error: classError } = await supabase
+        .from('course_classes')
+        .select('start_date')
+        .eq('id', classId)
+        .single();
+
+      if (classError) throw classError;
+
+      // Check if enrollment already exists
+      const { data: existing } = await supabase
+        .from('enrollments')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('class_id', classId)
+        .maybeSingle();
+
+      if (existing) {
+        throw new Error('User is already enrolled in this class');
+      }
+
+      // Check if user has enrollment in same course (update it)
+      const { data: courseEnrollment } = await supabase
+        .from('enrollments')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('course_id', courseId)
+        .maybeSingle();
+
+      if (courseEnrollment) {
+        // Update existing enrollment to new class
+        const { error } = await supabase
+          .from('enrollments')
+          .update({
+            class_id: classId,
+            start_date: classData.start_date
+          })
+          .eq('id', courseEnrollment.id);
+
+        if (error) throw error;
+      } else {
+        // Create new enrollment
+        const { error } = await supabase
+          .from('enrollments')
+          .insert({
+            user_id: userId,
+            course_id: courseId,
+            class_id: classId,
+            start_date: classData.start_date
+          });
+
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['class-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      toast.success('User added to class');
+    },
+    onError: (error) => {
+      toast.error(`Failed to add user: ${error.message}`);
+    }
+  });
+};
+
+// Admin: Remove user from a class
+export const useRemoveUserFromClass = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (enrollmentId: string) => {
+      const { error } = await supabase
+        .from('enrollments')
+        .delete()
+        .eq('id', enrollmentId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['class-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      toast.success('User removed from class');
+    },
+    onError: (error) => {
+      toast.error(`Failed to remove user: ${error.message}`);
+    }
+  });
+};
+
+// Get all users (for admin to add to class)
+export const useAvailableUsers = () => {
+  return useQuery({
+    queryKey: ['available-users-for-class'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, display_name, email, avatar_url')
+        .order('display_name');
+
+      if (error) throw error;
+      return data;
+    }
+  });
+};
