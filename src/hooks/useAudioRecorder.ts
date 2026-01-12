@@ -7,15 +7,19 @@ interface AudioRecorderState {
   audioBlob: Blob | null;
   audioBuffer: Float32Array | null;
   audioBase64: string | null;
+  audioUrl: string | null;
   sampleRate: number;
   error: string | null;
 }
 
 interface UseAudioRecorderReturn extends AudioRecorderState {
   startRecording: () => Promise<void>;
-  stopRecording: () => Promise<{ audioBuffer: Float32Array; sampleRate: number; audioBase64: string | null }>;
+  stopRecording: () => Promise<{ audioBuffer: Float32Array; sampleRate: number; audioBase64: string | null; audioUrl: string | null }>;
   resetRecording: () => void;
   getAudioLevel: () => number;
+  playRecording: () => void;
+  stopPlayback: () => void;
+  isPlaying: boolean;
 }
 
 export function useAudioRecorder(): UseAudioRecorderReturn {
@@ -26,9 +30,11 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     audioBlob: null,
     audioBuffer: null,
     audioBase64: null,
+    audioUrl: null,
     sampleRate: 44100,
     error: null,
   });
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -37,8 +43,9 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioLevelRef = useRef<number>(0);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const onStopPromiseRef = useRef<{
-    resolve: (value: { audioBuffer: Float32Array; sampleRate: number; audioBase64: string | null }) => void;
+    resolve: (value: { audioBuffer: Float32Array; sampleRate: number; audioBase64: string | null; audioUrl: string | null }) => void;
     reject: (reason?: any) => void;
   } | null>(null);
 
@@ -96,6 +103,10 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
         console.log('✅ Blob created:', audioBlob.size, 'bytes');
         
+        // Create audio URL for playback
+        const audioUrl = URL.createObjectURL(audioBlob);
+        console.log('✅ Audio URL created');
+        
         // Convert to base64 for API calls
         const reader = new FileReader();
         const base64Promise = new Promise<string>((resolve) => {
@@ -130,6 +141,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             audioBlob,
             audioBuffer,
             audioBase64,
+            audioUrl,
             sampleRate: decodedBuffer.sampleRate,
           }));
           
@@ -138,7 +150,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             onStopPromiseRef.current.resolve({
               audioBuffer,
               sampleRate: decodedBuffer.sampleRate,
-              audioBase64
+              audioBase64,
+              audioUrl
             });
             onStopPromiseRef.current = null;
           }
@@ -182,7 +195,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     }
   }, [updateAudioLevel]);
 
-  const stopRecording = useCallback((): Promise<{ audioBuffer: Float32Array; sampleRate: number; audioBase64: string | null }> => {
+  const stopRecording = useCallback((): Promise<{ audioBuffer: Float32Array; sampleRate: number; audioBase64: string | null; audioUrl: string | null }> => {
     return new Promise((resolve, reject) => {
       console.log('⏹️ Stopping recording...');
       
@@ -218,7 +231,47 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     });
   }, []);
 
+  const playRecording = useCallback(() => {
+    if (state.audioUrl) {
+      // Stop any existing playback
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current = null;
+      }
+      
+      const audio = new Audio(state.audioUrl);
+      audioElementRef.current = audio;
+      
+      audio.onplay = () => setIsPlaying(true);
+      audio.onended = () => setIsPlaying(false);
+      audio.onpause = () => setIsPlaying(false);
+      audio.onerror = () => setIsPlaying(false);
+      
+      audio.play().catch(console.error);
+    }
+  }, [state.audioUrl]);
+
+  const stopPlayback = useCallback(() => {
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.currentTime = 0;
+      audioElementRef.current = null;
+      setIsPlaying(false);
+    }
+  }, []);
+
   const resetRecording = useCallback(() => {
+    // Clean up old audio URL
+    if (state.audioUrl) {
+      URL.revokeObjectURL(state.audioUrl);
+    }
+    // Stop any playback
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current = null;
+    }
+    setIsPlaying(false);
+    
     setState({
       isRecording: false,
       isPaused: false,
@@ -226,13 +279,14 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       audioBlob: null,
       audioBuffer: null,
       audioBase64: null,
+      audioUrl: null,
       sampleRate: 44100,
       error: null,
     });
     audioLevelRef.current = 0;
     chunksRef.current = [];
     onStopPromiseRef.current = null;
-  }, []);
+  }, [state.audioUrl]);
 
   const getAudioLevel = useCallback(() => {
     return audioLevelRef.current;
@@ -245,14 +299,23 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
+      if (state.audioUrl) {
+        URL.revokeObjectURL(state.audioUrl);
+      }
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+      }
     };
-  }, []);
+  }, [state.audioUrl]);
 
   return {
     ...state,
+    isPlaying,
     startRecording,
     stopRecording,
     resetRecording,
     getAudioLevel,
+    playRecording,
+    stopPlayback,
   };
 }

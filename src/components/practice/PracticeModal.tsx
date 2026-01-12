@@ -11,7 +11,8 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Flame
+  Flame,
+  Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -374,6 +375,30 @@ export const PracticeModal = ({
                   analysisResult={analysisResult} 
                   coinChange={coinChange}
                 />
+
+                {/* Your Recording - Playback Button */}
+                {recorder.audioUrl && (
+                  <div className="flex justify-center mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={recorder.isPlaying ? recorder.stopPlayback : recorder.playRecording}
+                      className="gap-2"
+                    >
+                      {recorder.isPlaying ? (
+                        <>
+                          <Square className="w-4 h-4" />
+                          Stop Playback
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4" />
+                          Listen to Your Recording
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
 
                 {/* Feedback */}
                 {analysisResult.feedback && analysisResult.feedback.length > 0 && (
