@@ -1,12 +1,22 @@
 // Audio Analysis Metrics for Voice Energy App
-// Copied from chunks-voice-energy (WORKING VERSION)
+// Uses scoring_config table from Supabase admin panel
 
 import { supabase } from "@/integrations/supabase/client";
 
 // Types for speech rate method
 export type SpeechRateMethod = "energy-peaks" | "deepgram-stt" | "zero-crossing-rate";
 
-// Config interface matching admin settings
+// Config interface matching Supabase scoring_config table
+export interface ScoringConfigRow {
+  id: string;
+  metric_name: string;
+  weight: number;
+  min_value: number | null;
+  max_value: number | null;
+  description: string | null;
+}
+
+// Internal metric config for analysis functions
 export interface MetricConfig {
   id: string;
   weight: number;
@@ -18,25 +28,84 @@ export interface MetricConfig {
   method?: SpeechRateMethod;
 }
 
-// Load config from localStorage or use defaults
-function getConfig(): MetricConfig[] {
-  try {
-    const saved = localStorage.getItem("metricConfig");
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (e) {
-    console.warn("Failed to load metric config:", e);
-  }
+// Cache for scoring config from DB
+let cachedConfig: MetricConfig[] | null = null;
+let lastFetchTime = 0;
+const CACHE_DURATION = 60000; // 1 minute cache
 
-  // Default config (matches AdminSettings defaults)
-  return [
-    { id: "volume", weight: 40, thresholds: { min: -35, ideal: -15, max: 0 } },
-    { id: "speechRate", weight: 40, thresholds: { min: 90, ideal: 150, max: 220 }, method: "energy-peaks" },
-    { id: "acceleration", weight: 5, thresholds: { min: 0, ideal: 50, max: 100 } },
-    { id: "responseTime", weight: 5, thresholds: { min: 2000, ideal: 200, max: 0 } },
-    { id: "pauseManagement", weight: 10, thresholds: { min: 0, ideal: 0, max: 2.71 } },
-  ];
+// Map DB metric names to internal metric IDs
+const METRIC_NAME_MAP: Record<string, string> = {
+  'volume': 'volume',
+  'speech_rate': 'speechRate',
+  'pauses': 'pauseManagement',
+  'latency': 'responseTime',
+  'end_intensity': 'acceleration', // Maps to our acceleration/dynamics metric
+};
+
+// Default config (fallback if DB fetch fails)
+const DEFAULT_CONFIG: MetricConfig[] = [
+  { id: "volume", weight: 20, thresholds: { min: -45, ideal: -20, max: 0 } },
+  { id: "speechRate", weight: 25, thresholds: { min: 80, ideal: 150, max: 200 }, method: "energy-peaks" },
+  { id: "acceleration", weight: 25, thresholds: { min: 0, ideal: 100, max: 100 } },
+  { id: "responseTime", weight: 15, thresholds: { min: 500, ideal: 0, max: 3000 } },
+  { id: "pauseManagement", weight: 15, thresholds: { min: 0, ideal: 0, max: 1.5 } },
+];
+
+// Fetch config from Supabase scoring_config table
+async function fetchConfigFromDB(): Promise<MetricConfig[]> {
+  try {
+    const { data, error } = await supabase
+      .from('scoring_config')
+      .select('*');
+
+    if (error) throw error;
+    if (!data || data.length === 0) return DEFAULT_CONFIG;
+
+    console.log('📊 Loaded scoring config from DB:', data);
+
+    // Convert DB format to internal MetricConfig format
+    const configMap = new Map<string, MetricConfig>();
+    
+    // Start with defaults
+    DEFAULT_CONFIG.forEach(cfg => configMap.set(cfg.id, { ...cfg }));
+
+    // Override with DB values
+    data.forEach((row: ScoringConfigRow) => {
+      const internalId = METRIC_NAME_MAP[row.metric_name];
+      if (internalId && configMap.has(internalId)) {
+        const existing = configMap.get(internalId)!;
+        configMap.set(internalId, {
+          ...existing,
+          weight: row.weight * 100, // Convert from 0.20 to 20
+          thresholds: {
+            min: row.min_value ?? existing.thresholds.min,
+            ideal: row.max_value ?? existing.thresholds.ideal, // max_value is the "good" target
+            max: row.max_value ?? existing.thresholds.max,
+          },
+        });
+      }
+    });
+
+    return Array.from(configMap.values());
+  } catch (e) {
+    console.error("Failed to fetch scoring config from DB:", e);
+    return DEFAULT_CONFIG;
+  }
+}
+
+// Sync version - uses cache only
+function getConfig(): MetricConfig[] {
+  return cachedConfig || DEFAULT_CONFIG;
+}
+
+// Async version - fetches fresh config if cache expired
+async function getConfigAsync(): Promise<MetricConfig[]> {
+  const now = Date.now();
+  if (!cachedConfig || now - lastFetchTime > CACHE_DURATION) {
+    cachedConfig = await fetchConfigFromDB();
+    lastFetchTime = now;
+  }
+  return cachedConfig;
 }
 
 function getMetricConfig(id: string): MetricConfig | undefined {
@@ -683,14 +752,18 @@ export function analyzeAudio(audioBuffer: Float32Array, sampleRate: number): Ana
   };
 }
 
-// Async Analysis Function - supports both methods including STT
+// Async Analysis Function - fetches fresh config from DB and supports STT
 export async function analyzeAudioAsync(
   audioBuffer: Float32Array,
   sampleRate: number,
   audioBase64?: string,
 ): Promise<AnalysisResult> {
   const duration = audioBuffer.length / sampleRate;
-  const config = getConfig();
+  
+  // Fetch fresh config from Supabase scoring_config table
+  const config = await getConfigAsync();
+  console.log('🎯 Using scoring config:', config.map(c => `${c.id}: ${c.weight}%`).join(', '));
+  
   const method = getSpeechRateMethod();
 
   const volume = calculateVolumeLevel(audioBuffer);
@@ -708,11 +781,14 @@ export async function analyzeAudioAsync(
   const responseTime = calculateResponseTime(audioBuffer, sampleRate);
   const pauseManagement = calculatePauseManagement(audioBuffer, sampleRate, duration);
 
-  const volumeWeight = (config.find((m) => m.id === "volume")?.weight ?? 30) / 100;
-  const speechWeight = (config.find((m) => m.id === "speechRate")?.weight ?? 30) / 100;
-  const accelerationWeight = (config.find((m) => m.id === "acceleration")?.weight ?? 15) / 100;
-  const responseWeight = (config.find((m) => m.id === "responseTime")?.weight ?? 10) / 100;
+  // Use weights from DB config (already in percentage form like 20, 25, etc.)
+  const volumeWeight = (config.find((m) => m.id === "volume")?.weight ?? 20) / 100;
+  const speechWeight = (config.find((m) => m.id === "speechRate")?.weight ?? 25) / 100;
+  const accelerationWeight = (config.find((m) => m.id === "acceleration")?.weight ?? 25) / 100;
+  const responseWeight = (config.find((m) => m.id === "responseTime")?.weight ?? 15) / 100;
   const pauseWeight = (config.find((m) => m.id === "pauseManagement")?.weight ?? 15) / 100;
+
+  console.log('📈 Applying weights:', { volumeWeight, speechWeight, accelerationWeight, responseWeight, pauseWeight });
 
   const overallScore = Math.min(
     100,
