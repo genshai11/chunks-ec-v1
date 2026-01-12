@@ -135,33 +135,22 @@ export const useStreakLeaderboard = (limit = 10) => {
   return useQuery({
     queryKey: ['streak-leaderboard', limit],
     queryFn: async () => {
-      const { data: streaks, error: streaksError } = await supabase
-        .from('daily_streaks')
-        .select('user_id, current_streak, longest_streak')
-        .order('current_streak', { ascending: false })
-        .limit(limit);
+      // Use RPC function that is accessible to all authenticated users
+      const { data, error } = await supabase.rpc('get_streak_leaderboard', {
+        p_limit: limit,
+        p_offset: 0
+      });
 
-      if (streaksError) throw streaksError;
+      if (error) throw error;
 
-      const userIds = streaks?.map(s => s.user_id) || [];
-      
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url')
-        .in('id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      const profileMap = new Map(profiles?.map(p => [p.id, p]));
-
-      return streaks?.map((streak, index) => ({
+      return (data || []).map((row: any, index: number) => ({
         rank: index + 1,
-        userId: streak.user_id,
-        displayName: profileMap.get(streak.user_id)?.display_name || 'Anonymous',
-        avatarUrl: profileMap.get(streak.user_id)?.avatar_url,
-        currentStreak: streak.current_streak,
-        longestStreak: streak.longest_streak
-      })) || [];
+        userId: row.user_id,
+        displayName: row.display_name || 'Anonymous',
+        avatarUrl: row.avatar_url,
+        currentStreak: row.current_streak,
+        longestStreak: row.longest_streak
+      }));
     }
   });
 };

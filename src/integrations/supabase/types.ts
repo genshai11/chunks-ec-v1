@@ -548,6 +548,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_score_leaderboard: {
+        Args: {
+          p_class_id?: string
+          p_course_id?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          avatar_url: string
+          avg_score: number
+          coins: number
+          display_name: string
+          practice_count: number
+          total_score: number
+          user_id: string
+        }[]
+      }
+      get_streak_leaderboard: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: {
+          avatar_url: string
+          current_streak: number
+          display_name: string
+          longest_streak: number
+          user_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

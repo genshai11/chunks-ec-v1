@@ -22,83 +22,46 @@ export const useRealtimeLeaderboard = (limit = 50) => {
   const [rankChanges, setRankChanges] = useState<Map<string, { previous: number; current: number }>>(new Map());
   const [isLive, setIsLive] = useState(false);
 
-  // Initial fetch
+  // Initial fetch using RPC for proper access
   const { data: leaderboard, isLoading, refetch } = useQuery({
     queryKey: ['realtime-leaderboard', limit],
     queryFn: async () => {
-      // Get all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url');
+      // Use RPC function that is accessible to all authenticated users
+      const { data, error } = await supabase.rpc('get_score_leaderboard', {
+        p_limit: limit,
+        p_offset: 0,
+        p_course_id: null,
+        p_class_id: null
+      });
 
-      if (profilesError) throw profilesError;
+      if (error) throw error;
 
-      // Get practice history aggregated by user
-      const { data: practiceData, error: practiceError } = await supabase
-        .from('practice_history')
-        .select('user_id, score');
-
-      if (practiceError) throw practiceError;
-
-      // Get wallets for coin balance
-      const { data: wallets, error: walletsError } = await supabase
-        .from('user_wallets')
-        .select('user_id, balance');
-
-      if (walletsError) throw walletsError;
-
-      // Aggregate practice data by user
-      const userStats: Record<string, { totalScore: number; practiceCount: number }> = {};
-      practiceData?.forEach(practice => {
-        if (!userStats[practice.user_id]) {
-          userStats[practice.user_id] = { totalScore: 0, practiceCount: 0 };
+      // Map to our entry format with rank tracking
+      const entries: RealtimeLeaderboardEntry[] = (data || []).map((row: any, index: number) => {
+        const previousInfo = rankChanges.get(row.user_id);
+        const rank = index + 1;
+        
+        let rankChange: 'up' | 'down' | 'same' | 'new' = 'same';
+        if (previousInfo) {
+          if (rank < previousInfo.current) rankChange = 'up';
+          else if (rank > previousInfo.current) rankChange = 'down';
+        } else if (row.practice_count === 1) {
+          rankChange = 'new';
         }
-        userStats[practice.user_id].totalScore += practice.score;
-        userStats[practice.user_id].practiceCount += 1;
-      });
 
-      // Create wallet lookup
-      const walletLookup: Record<string, number> = {};
-      wallets?.forEach(wallet => {
-        walletLookup[wallet.user_id] = wallet.balance;
+        return {
+          userId: row.user_id,
+          displayName: row.display_name || 'Anonymous',
+          avatarUrl: row.avatar_url,
+          totalScore: row.total_score,
+          practiceCount: row.practice_count,
+          avgScore: row.avg_score,
+          coins: row.coins,
+          rank,
+          previousRank: previousInfo?.current,
+          rankChange
+        };
       });
-
-      // Build leaderboard entries
-      const entries: RealtimeLeaderboardEntry[] = profiles
-        .map(profile => {
-          const stats = userStats[profile.id] || { totalScore: 0, practiceCount: 0 };
-          const previousInfo = rankChanges.get(profile.id);
-          
-          return {
-            userId: profile.id,
-            displayName: profile.display_name || 'Anonymous',
-            avatarUrl: profile.avatar_url,
-            totalScore: stats.totalScore,
-            practiceCount: stats.practiceCount,
-            avgScore: stats.practiceCount > 0 
-              ? Math.round(stats.totalScore / stats.practiceCount) 
-              : 0,
-            coins: walletLookup[profile.id] || 0,
-            rank: 0,
-            previousRank: previousInfo?.previous
-          };
-        })
-        .filter(e => e.practiceCount > 0)
-        .sort((a, b) => b.totalScore - a.totalScore)
-        .slice(0, limit)
-        .map((entry, index) => {
-          const rank = index + 1;
-          let rankChange: 'up' | 'down' | 'same' | 'new' = 'same';
-          
-          if (entry.previousRank) {
-            if (rank < entry.previousRank) rankChange = 'up';
-            else if (rank > entry.previousRank) rankChange = 'down';
-          } else if (entry.practiceCount === 1) {
-            rankChange = 'new';
-          }
-          
-          return { ...entry, rank, rankChange };
-        });
 
       // Store current ranks for next comparison
       const newRankChanges = new Map<string, { previous: number; current: number }>();
@@ -112,7 +75,7 @@ export const useRealtimeLeaderboard = (limit = 50) => {
 
       return entries;
     },
-    refetchInterval: false, // We'll handle this with realtime
+    refetchInterval: false,
   });
 
   // Get current user's rank
@@ -131,7 +94,6 @@ export const useRealtimeLeaderboard = (limit = 50) => {
           table: 'practice_history'
         },
         () => {
-          // Refetch leaderboard when new practice is added
           queryClient.invalidateQueries({ queryKey: ['realtime-leaderboard'] });
         }
       )
@@ -143,7 +105,6 @@ export const useRealtimeLeaderboard = (limit = 50) => {
           table: 'user_wallets'
         },
         () => {
-          // Refetch when wallets change
           queryClient.invalidateQueries({ queryKey: ['realtime-leaderboard'] });
         }
       )
@@ -180,24 +141,18 @@ export const useRealtimeUserRank = () => {
   const calculateRank = useCallback(async () => {
     if (!user?.id) return;
 
-    const { data: practiceData } = await supabase
-      .from('practice_history')
-      .select('user_id, score');
-
-    const userTotals: Record<string, number> = {};
-    practiceData?.forEach(practice => {
-      userTotals[practice.user_id] = (userTotals[practice.user_id] || 0) + practice.score;
+    const { data } = await supabase.rpc('get_score_leaderboard', {
+      p_limit: 1000,
+      p_offset: 0,
+      p_course_id: null,
+      p_class_id: null
     });
 
-    const sortedUsers = Object.entries(userTotals)
-      .sort(([, a], [, b]) => b - a)
-      .map(([id], index) => ({ userId: id, rank: index + 1 }));
-
-    const userRankInfo = sortedUsers.find(u => u.userId === user.id);
+    const userRankInfo = (data || []).findIndex((row: any) => row.user_id === user.id);
     
-    if (userRankInfo) {
+    if (userRankInfo !== -1) {
       setPreviousRank(rank);
-      setRank(userRankInfo.rank);
+      setRank(userRankInfo + 1);
     }
   }, [user?.id, rank]);
 
