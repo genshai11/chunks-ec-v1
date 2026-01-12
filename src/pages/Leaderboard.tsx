@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Medal, Award, Crown, Loader2, ArrowUp, ArrowDown, Sparkles, Radio, RefreshCw } from "lucide-react";
+import { Trophy, Medal, Award, Crown, Loader2, ArrowUp, ArrowDown, Sparkles, Radio, RefreshCw, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,23 +9,52 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useRealtimeLeaderboard } from "@/hooks/useRealtimeLeaderboard";
 import { useStreakLeaderboard } from "@/hooks/useStreak";
+import { useCourseLeaderboard, useClassLeaderboard, useUserEnrolledCourse } from "@/hooks/useCourseLeaderboard";
 import { useAuth } from "@/context/AuthContext";
 
 const Leaderboard = () => {
-  const { user } = useAuth();
-  const { leaderboard, isLoading, isLive, userRank, forceRefresh } = useRealtimeLeaderboard(50);
+  const { user, isAdmin } = useAuth();
+  const { leaderboard: globalLeaderboard, isLoading: globalLoading, isLive, userRank: globalUserRank, forceRefresh } = useRealtimeLeaderboard(50);
   const { data: streakLeaderboard } = useStreakLeaderboard(20);
+  const { data: enrollment, isLoading: enrollmentLoading } = useUserEnrolledCourse();
+  
+  // Get course/class specific leaderboard for learners
+  const courseId = enrollment?.course_id;
+  const classId = enrollment?.class_id;
+  
+  const { data: courseLeaderboard, isLoading: courseLoading } = useCourseLeaderboard(courseId, 50);
+  const { data: classLeaderboard, isLoading: classLoading } = useClassLeaderboard(classId, 50);
+  
   const [highlightedUser, setHighlightedUser] = useState<string | null>(null);
+
+  // Use class leaderboard if enrolled in a class, otherwise course leaderboard, otherwise global
+  const activeLeaderboard = classId && classLeaderboard?.length 
+    ? classLeaderboard 
+    : courseId && courseLeaderboard?.length 
+      ? courseLeaderboard 
+      : globalLeaderboard;
+  
+  const isLoading = globalLoading || enrollmentLoading || courseLoading || classLoading;
+  
+  // Calculate user's rank in active leaderboard
+  const userRank = activeLeaderboard?.find(e => e.userId === user?.id)?.rank || null;
+
+  // Get context label
+  const contextLabel = classId && enrollment?.course_classes 
+    ? (enrollment.course_classes as any)?.class_name || 'Your Class'
+    : courseId && enrollment?.courses 
+      ? (enrollment.courses as any)?.name || 'Your Course'
+      : 'Global';
 
   // Highlight users who just updated
   useEffect(() => {
-    const recentChange = leaderboard.find(e => e.rankChange === 'up' || e.rankChange === 'new');
+    const recentChange = globalLeaderboard.find(e => e.rankChange === 'up' || e.rankChange === 'new');
     if (recentChange) {
       setHighlightedUser(recentChange.userId);
       const timer = setTimeout(() => setHighlightedUser(null), 3000);
       return () => clearTimeout(timer);
     }
-  }, [leaderboard]);
+  }, [globalLeaderboard]);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -94,7 +123,12 @@ const Leaderboard = () => {
                   Leaderboard
                 </h1>
                 <p className="text-muted-foreground flex items-center gap-2">
-                  Top learners by total score
+                  {!isAdmin && (
+                    <Badge variant="outline" className="gap-1">
+                      <Users className="w-3 h-3" />
+                      {contextLabel}
+                    </Badge>
+                  )}
                   {isLive && (
                     <Badge variant="secondary" className="gap-1 animate-pulse">
                       <Radio className="w-3 h-3" />
@@ -138,7 +172,7 @@ const Leaderboard = () => {
                             <span className="text-lg font-bold text-primary">#{userRank}</span>
                           </div>
                           <div>
-                            <p className="font-medium">Your Rank</p>
+                            <p className="font-medium">Your Rank in {contextLabel}</p>
                             <p className="text-sm text-muted-foreground">Keep practicing to climb higher!</p>
                           </div>
                         </div>
@@ -150,18 +184,18 @@ const Leaderboard = () => {
 
               {/* Leaderboard List */}
               <div className="space-y-3">
-                {leaderboard.length === 0 ? (
+                {!activeLeaderboard || activeLeaderboard.length === 0 ? (
                   <Card>
                     <CardContent className="py-12 text-center">
                       <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                       <p className="text-muted-foreground">
-                        No rankings yet. Be the first to practice and earn points!
+                        {courseId ? 'No classmates have practiced yet. Be the first!' : 'No rankings yet. Be the first to practice and earn points!'}
                       </p>
                     </CardContent>
                   </Card>
                 ) : (
                   <AnimatePresence mode="popLayout">
-                    {leaderboard.map((entry, index) => (
+                    {activeLeaderboard.map((entry, index) => (
                       <motion.div
                         key={entry.userId}
                         layout
@@ -178,9 +212,9 @@ const Leaderboard = () => {
                               {/* Rank */}
                               <div className="w-10 flex items-center justify-center relative">
                                 {getRankIcon(entry.rank)}
-                                {entry.rankChange && entry.rankChange !== 'same' && (
+                                {'rankChange' in entry && entry.rankChange && entry.rankChange !== 'same' && (
                                   <div className="absolute -top-1 -right-1">
-                                    {getRankChangeIndicator(entry.rankChange)}
+                                    {getRankChangeIndicator(entry.rankChange as any)}
                                   </div>
                                 )}
                               </div>
@@ -200,7 +234,7 @@ const Leaderboard = () => {
                                   {entry.userId === user?.id && (
                                     <span className="ml-2 text-xs text-primary">(You)</span>
                                   )}
-                                  {entry.rankChange === 'new' && (
+                                  {'rankChange' in entry && entry.rankChange === 'new' && (
                                     <Badge variant="secondary" className="ml-2 text-xs">New</Badge>
                                   )}
                                 </p>
@@ -210,20 +244,17 @@ const Leaderboard = () => {
                                 </div>
                               </div>
 
-                              {/* Score & Coins */}
+                              {/* Score */}
                               <div className="text-right">
                                 <motion.div 
                                   key={entry.totalScore}
-                                  initial={{ scale: entry.rankChange === 'up' ? 1.2 : 1 }}
+                                  initial={{ scale: 'rankChange' in entry && entry.rankChange === 'up' ? 1.2 : 1 }}
                                   animate={{ scale: 1 }}
                                   className="text-xl font-bold text-primary"
                                 >
                                   {entry.totalScore.toLocaleString()}
                                 </motion.div>
-                                <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
-                                  <span className="text-yellow-500">🪙</span>
-                                  {entry.coins.toLocaleString()}
-                                </div>
+                                <div className="text-sm text-muted-foreground">points</div>
                               </div>
                             </div>
                           </CardContent>

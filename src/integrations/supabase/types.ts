@@ -107,6 +107,50 @@ export type Database = {
         }
         Relationships: []
       }
+      course_classes: {
+        Row: {
+          class_code: string
+          class_name: string
+          course_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          schedule_days: Json
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          class_code: string
+          class_name: string
+          course_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          schedule_days?: Json
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          class_code?: string
+          class_name?: string
+          course_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          schedule_days?: Json
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_classes_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courses: {
         Row: {
           code: string
@@ -181,6 +225,7 @@ export type Database = {
       }
       enrollments: {
         Row: {
+          class_id: string | null
           completed_at: string | null
           course_id: string
           enrolled_at: string
@@ -190,6 +235,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          class_id?: string | null
           completed_at?: string | null
           course_id: string
           enrolled_at?: string
@@ -199,6 +245,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          class_id?: string | null
           completed_at?: string | null
           course_id?: string
           enrolled_at?: string
@@ -208,6 +255,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "enrollments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "course_classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "enrollments_course_id_fkey"
             columns: ["course_id"]
