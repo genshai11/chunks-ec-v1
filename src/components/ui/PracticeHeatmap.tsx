@@ -3,13 +3,10 @@ import { motion } from 'framer-motion';
 import { Flame, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
-  startOfWeek, 
-  endOfWeek, 
   eachDayOfInterval, 
   format, 
   subDays, 
   isSameDay,
-  startOfDay,
   getDay
 } from 'date-fns';
 
@@ -19,6 +16,13 @@ interface PracticeHeatmapProps {
     score: number;
   }>;
   className?: string;
+}
+
+interface DayData {
+  date: Date;
+  dateStr: string;
+  count: number;
+  dayOfWeek: number;
 }
 
 export const PracticeHeatmap = ({ practiceHistory, className }: PracticeHeatmapProps) => {
@@ -51,8 +55,8 @@ export const PracticeHeatmap = ({ practiceHistory, className }: PracticeHeatmapP
 
   // Group days by week for display
   const weeks = useMemo(() => {
-    const weeksArray: typeof heatmapData[][] = [];
-    let currentWeek: typeof heatmapData = [];
+    const weeksArray: DayData[][] = [];
+    let currentWeek: DayData[] = [];
     
     // Fill in empty days at the start to align with Sunday
     const firstDay = heatmapData[0];

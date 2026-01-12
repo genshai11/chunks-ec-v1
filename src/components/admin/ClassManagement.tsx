@@ -454,11 +454,7 @@ const ClassCard: React.FC<{
                     )}
                     <Badge variant="secondary" className="text-xs gap-1">
                       <Users className="w-3 h-3" />
-                      {enrollmentsLoading ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <>{learnerCount}</>
-                      )}
+                      {(cls as any).learner_count ?? learnerCount}
                     </Badge>
                   </div>
                   <CardTitle className="text-lg mt-1">{cls.class_name}</CardTitle>
