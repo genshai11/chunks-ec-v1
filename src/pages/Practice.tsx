@@ -11,27 +11,20 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  CheckCircle2,
-  XCircle,
   ArrowLeft
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { CoinBadge } from "@/components/ui/CoinBadge";
 import { AudioWaveform } from "@/components/ui/AudioWaveform";
+import { ScoreDisplay } from "@/components/practice/ScoreDisplay";
 import { useEnrollments, useCourseLessons, Lesson } from "@/hooks/useCourses";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
-import { 
-  useTranscribe, 
-  useAnalyzeSpeech, 
-  useSavePractice, 
-  useUserProgress,
-  SpeechAnalysisResult 
-} from "@/hooks/usePractice";
+import { useSavePractice, useUserProgress } from "@/hooks/usePractice";
+import { analyzeAudioAsync, AnalysisResult } from "@/lib/audioAnalysis";
 import { useCoinConfig } from "@/hooks/useCoinWallet";
 import { useWallet } from "@/hooks/useUserData";
 import { toast } from "sonner";
@@ -54,15 +47,12 @@ const Practice = () => {
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [showVietnamese, setShowVietnamese] = useState(true);
-  const [analysisResult, setAnalysisResult] = useState<SpeechAnalysisResult | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [coinChange, setCoinChange] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
 
   const recorder = useAudioRecorder();
   const tts = useTextToSpeech();
-  const transcribe = useTranscribe();
-  const analyze = useAnalyzeSpeech();
   const savePractice = useSavePractice();
 
   const { data: lessonProgress } = useUserProgress(selectedLesson?.id);
@@ -115,7 +105,6 @@ const Practice = () => {
     try {
       setAnalysisResult(null);
       setCoinChange(null);
-      setRecordingStartTime(Date.now());
       await recorder.startRecording();
     } catch (error) {
       toast.error("Could not access microphone. Please check permissions.");
@@ -126,36 +115,25 @@ const Practice = () => {
     if (!selectedLesson || !currentItem) return;
     
     setIsAnalyzing(true);
-    const latency = Date.now() - recordingStartTime;
     
     try {
       const audioData = await recorder.stopRecording();
-      const audioBase64 = audioData.audioBase64;
       
-      if (!audioBase64) {
+      if (!audioData.audioBuffer || audioData.audioBuffer.length === 0) {
         throw new Error("No audio recorded");
       }
 
-      const transcriptionResult = await transcribe.mutateAsync(audioBase64);
-      
-      const metrics = {
-        volume: -25 + Math.random() * 10,
-        speechRate: transcriptionResult.wordsPerMinute,
-        pauseCount: Math.floor(Math.random() * 3),
-        longestPause: Math.floor(Math.random() * 1000),
-        latency: Math.min(latency, 3000),
-        endIntensity: 70 + Math.random() * 30
-      };
-
-      const result = await analyze.mutateAsync({
-        transcription: transcriptionResult.transcript,
-        metrics
-      });
+      // Use local audio analysis with Supabase scoring config
+      const result = await analyzeAudioAsync(
+        audioData.audioBuffer,
+        audioData.sampleRate,
+        audioData.audioBase64 || undefined
+      );
 
       setAnalysisResult(result);
 
       // Calculate coin reward/penalty
-      const score = result.score;
+      const score = result.overallScore;
       let coins = 0;
       
       if (coinConfig) {
@@ -408,35 +386,16 @@ const Practice = () => {
                       )}
                     </div>
                   ) : (
-                    // Results
-                    <div className="space-y-4">
-                      {/* Score */}
-                      <div className="text-center">
-                        <div className={cn(
-                          "inline-flex items-center justify-center w-20 h-20 rounded-full text-3xl font-bold",
-                          analysisResult.score >= 80 ? "bg-success/20 text-success" :
-                          analysisResult.score >= 60 ? "bg-warning/20 text-warning" :
-                          "bg-destructive/20 text-destructive"
-                        )}>
-                          {analysisResult.score}
-                        </div>
-                        <div className="mt-2 flex items-center justify-center gap-2">
-                          {analysisResult.score >= 70 ? (
-                            <CheckCircle2 className="w-5 h-5 text-success" />
-                          ) : (
-                            <XCircle className="w-5 h-5 text-destructive" />
-                          )}
-                          <span className="text-sm text-muted-foreground">
-                            {analysisResult.feedback}
-                          </span>
-                        </div>
-                      </div>
+                    // Results with ScoreDisplay
+                    <div className="space-y-6">
+                      <ScoreDisplay 
+                        analysisResult={analysisResult} 
+                        coinChange={coinChange}
+                      />
 
-                      {/* Transcription */}
-                      <div className="p-4 rounded-lg bg-secondary/30">
-                        <p className="text-sm text-muted-foreground mb-1">You said:</p>
-                        <p className="font-medium">{analysisResult.transcription}</p>
-                        <p className="text-sm text-muted-foreground mt-2">Expected:</p>
+                      {/* Expected phrase */}
+                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                        <p className="text-sm text-muted-foreground mb-1">Expected:</p>
                         <p className="font-medium text-primary">{currentItem?.English}</p>
                       </div>
 
@@ -451,7 +410,7 @@ const Practice = () => {
                           Retry
                         </Button>
                         <Button 
-                          className="flex-1"
+                          className="flex-1 gradient-primary"
                           onClick={handleNext}
                         >
                           Next

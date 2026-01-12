@@ -11,8 +11,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  CheckCircle2,
-  XCircle,
   Flame
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,10 +18,12 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { CoinBadge } from "@/components/ui/CoinBadge";
 import { AudioWaveform } from "@/components/ui/AudioWaveform";
+import { ScoreDisplay } from "@/components/practice/ScoreDisplay";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useCoinConfig } from "@/hooks/useCoinWallet";
 import { useWallet } from "@/hooks/useUserData";
+import { analyzeAudioAsync, AnalysisResult } from "@/lib/audioAnalysis";
 import { toast } from "sonner";
 
 interface PracticeItem {
@@ -53,7 +53,7 @@ export const PracticeModal = ({
 }: PracticeModalProps) => {
   const [currentIndex, setCurrentIndex] = useState(startIndex);
   const [showEnglish, setShowEnglish] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [coinChange, setCoinChange] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [sessionStats, setSessionStats] = useState({ 
@@ -113,7 +113,6 @@ export const PracticeModal = ({
     try {
       console.log('⏹️ Stopping recording...');
       
-      // Stop recording - this now returns audio data directly when onstop completes
       const audioData = await recorder.stopRecording();
       
       console.log('✅ Recording stopped, got audio data:', {
@@ -122,19 +121,17 @@ export const PracticeModal = ({
         hasBase64: !!audioData.audioBase64
       });
       
-      // Analyze audio using working implementation from chunks-voice-energy
-      const { analyzeAudioAsync } = await import('@/lib/audioAnalysis');
-      
+      // Use local audio analysis with Supabase scoring config
       console.log('🔄 Starting audio analysis...');
-      const analysisResult = await analyzeAudioAsync(
+      const result = await analyzeAudioAsync(
         audioData.audioBuffer,
         audioData.sampleRate,
         audioData.audioBase64 || undefined
       );
       
-      console.log('✅ Analysis complete:', analysisResult);
+      console.log('✅ Analysis complete:', result);
 
-      setAnalysisResult(analysisResult);
+      setAnalysisResult(result);
 
       // Calculate coin reward/penalty
       const score = analysisResult.overallScore;
@@ -373,113 +370,14 @@ export const PracticeModal = ({
                 animate={{ scale: 1, opacity: 1 }}
                 className="mb-8"
               >
-                {/* Score Circle */}
-                <div className="text-center mb-6">
-                  <motion.div 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", bounce: 0.5 }}
-                    className={`inline-flex flex-col items-center justify-center w-32 h-32 rounded-2xl ${
-                      analysisResult.overallScore >= 80 
-                        ? "bg-success/10 border-4 border-success/30" 
-                        : analysisResult.overallScore >= 60
-                          ? "bg-warning/10 border-4 border-warning/30"
-                          : "bg-destructive/10 border-4 border-destructive/30"
-                    }`}
-                  >
-                    <motion.span 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.3 }}
-                      className={`text-4xl font-display font-bold ${scoreColor}`}
-                    >
-                      {analysisResult.overallScore}
-                    </motion.span>
-                    <span className="text-xs text-muted-foreground">points</span>
-                    {analysisResult.overallScore >= 80 && (
-                      <CheckCircle2 className="w-5 h-5 text-success mt-1" />
-                    )}
-                  </motion.div>
-
-                  {/* Coin change indicator */}
-                  {coinChange !== null && coinChange !== 0 && (
-                    <motion.div
-                      initial={{ y: -10, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.5 }}
-                      className={`mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${
-                        coinChange > 0 
-                          ? "bg-success/10 text-success" 
-                          : "bg-destructive/10 text-destructive"
-                      }`}
-                    >
-                      <span className="text-lg">🪙</span>
-                      {coinChange > 0 ? '+' : ''}{coinChange}
-                    </motion.div>
-                  )}
-                </div>
-
-                {/* Metrics Breakdown - Shows both score AND raw values */}
-                <div className="grid grid-cols-5 gap-2 mb-4">
-                  {[
-                    { 
-                      key: 'volume', 
-                      label: 'Volume', 
-                      score: analysisResult.metrics.volume,
-                      raw: `${analysisResult.volume?.averageDb?.toFixed(1) || 0} dB`
-                    },
-                    { 
-                      key: 'speechRate', 
-                      label: 'Speed', 
-                      score: analysisResult.metrics.speechRate,
-                      raw: `${analysisResult.speechRate?.wordsPerMinute || 0} WPM`
-                    },
-                    { 
-                      key: 'pauses', 
-                      label: 'Fluency', 
-                      score: analysisResult.metrics.pauses,
-                      raw: `${analysisResult.pauseManagement?.pauseCount || 0} pauses`
-                    },
-                    { 
-                      key: 'latency', 
-                      label: 'Response', 
-                      score: analysisResult.metrics.latency,
-                      raw: `${analysisResult.responseTime?.responseTimeMs || 0} ms`
-                    },
-                    { 
-                      key: 'endIntensity', 
-                      label: 'Energy', 
-                      score: analysisResult.metrics.endIntensity,
-                      raw: analysisResult.acceleration?.isAccelerating ? '📈 Rising' : '📉 Flat'
-                    },
-                  ].map((metric, index) => (
-                    <motion.div 
-                      key={metric.key} 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 * index }}
-                      className="text-center p-3 rounded-xl bg-secondary/50 border border-border/50"
-                    >
-                      <div className="text-xs text-muted-foreground mb-1">
-                        {metric.label}
-                      </div>
-                      <div className={`text-2xl font-bold ${
-                        metric.score >= 80 ? "text-success" 
-                          : metric.score >= 60 ? "text-warning" 
-                          : "text-destructive"
-                      }`}>
-                        {metric.score}%
-                      </div>
-                      <div className="text-[10px] text-muted-foreground mt-1 font-mono">
-                        {metric.raw}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                <ScoreDisplay 
+                  analysisResult={analysisResult} 
+                  coinChange={coinChange}
+                />
 
                 {/* Feedback */}
                 {analysisResult.feedback && analysisResult.feedback.length > 0 && (
-                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-sm mb-6">
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-sm mt-6">
                     {analysisResult.feedback.map((fb, i) => (
                       <p key={i} className="text-muted-foreground flex items-start gap-2">
                         <span className="text-primary mt-0.5">💡</span>
