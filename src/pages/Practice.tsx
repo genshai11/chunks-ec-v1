@@ -11,7 +11,9 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  Play,
+  Square
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -392,6 +394,30 @@ const Practice = () => {
                         analysisResult={analysisResult} 
                         coinChange={coinChange}
                       />
+
+                      {/* Your Recording - Playback Button */}
+                      {recorder.audioUrl && (
+                        <div className="flex justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={recorder.isPlaying ? recorder.stopPlayback : recorder.playRecording}
+                            className="gap-2"
+                          >
+                            {recorder.isPlaying ? (
+                              <>
+                                <Square className="w-4 h-4" />
+                                Stop Playback
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-4 h-4" />
+                                Listen to Your Recording
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
 
                       {/* Feedback messages */}
                       {analysisResult.feedback && analysisResult.feedback.length > 0 && (

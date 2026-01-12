@@ -55,38 +55,48 @@ export const ScoreDisplay = ({ analysisResult, coinChange, className }: ScoreDis
   const metrics = [
     {
       key: "volume",
+      label: "Volume",
       icon: Volume2,
       score: analysisResult.metrics.volume,
       raw: `${Math.round(analysisResult.volume?.averageDb || -30)}dB`,
       color: "text-amber-400",
+      description: "Speaking loudness"
     },
     {
       key: "speechRate",
+      label: "Speed",
       icon: Zap,
       score: analysisResult.metrics.speechRate,
       raw: `${analysisResult.speechRate?.wordsPerMinute || 0}WPM`,
-      color: "text-amber-400",
+      color: "text-cyan-400",
+      description: "Words per minute"
     },
     {
       key: "acceleration",
+      label: "Energy",
       icon: TrendingUp,
       score: analysisResult.metrics.endIntensity,
       raw: analysisResult.acceleration?.isAccelerating ? "↑" : "→",
       color: "text-emerald-400",
+      description: "End intensity"
     },
     {
       key: "latency",
+      label: "Response",
       icon: Clock,
       score: analysisResult.metrics.latency,
       raw: `${analysisResult.responseTime?.responseTimeMs || 0}ms`,
-      color: "text-emerald-400",
+      color: "text-violet-400",
+      description: "Response time"
     },
     {
       key: "pauses",
+      label: "Fluency",
       icon: Waves,
       score: analysisResult.metrics.pauses,
-      raw: `${analysisResult.pauseManagement?.pauseCount || 0}`,
+      raw: `${analysisResult.pauseManagement?.pauseCount || 0} pauses`,
       color: "text-rose-400",
+      description: "Pause count"
     },
   ];
 
@@ -217,6 +227,7 @@ export const ScoreDisplay = ({ analysisResult, coinChange, className }: ScoreDis
         transition={{ delay: 0.9 }}
         className="w-full max-w-md mt-2"
       >
+        <p className="text-xs text-muted-foreground text-center mb-2">Performance Metrics</p>
         <div className="grid grid-cols-5 gap-1 p-3 rounded-2xl bg-card/80 backdrop-blur border border-border/50 shadow-lg">
           {metrics.map((metric, index) => {
             const Icon = metric.icon;
@@ -227,12 +238,16 @@ export const ScoreDisplay = ({ analysisResult, coinChange, className }: ScoreDis
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1 + index * 0.1 }}
                 className="flex flex-col items-center py-2"
+                title={metric.description}
               >
-                <Icon className={cn("w-5 h-5 mb-1", metric.color)} />
-                <span className={cn("text-xl font-bold", getScoreColor(metric.score))}>
+                <Icon className={cn("w-4 h-4 mb-0.5", metric.color)} />
+                <span className="text-[9px] text-muted-foreground font-medium mb-0.5">
+                  {metric.label}
+                </span>
+                <span className={cn("text-lg font-bold leading-none", getScoreColor(metric.score))}>
                   {metric.score}
                 </span>
-                <span className="text-[10px] text-muted-foreground font-mono">
+                <span className="text-[9px] text-muted-foreground font-mono mt-0.5">
                   {metric.raw}
                 </span>
               </motion.div>
