@@ -88,12 +88,12 @@ export const useCourseLeaderboard = (courseId?: string, limit: number = 50) => {
   });
 };
 
-// Get user's enrolled course for filtering leaderboard
-export const useUserEnrolledCourse = () => {
+// Get user's enrolled class for filtering leaderboard
+export const useUserEnrolledClass = () => {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['user-enrolled-course', user?.id],
+    queryKey: ['user-enrolled-class', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
 
@@ -108,18 +108,18 @@ export const useUserEnrolledCourse = () => {
         .eq('user_id', user.id)
         .eq('status', 'active')
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        if (error.code === 'PGRST116') return null; // No enrollment found
-        throw error;
-      }
+      if (error) throw error;
 
       return data;
     },
     enabled: !!user?.id
   });
 };
+
+// Keep old name as alias for backward compatibility
+export const useUserEnrolledCourse = useUserEnrolledClass;
 
 // Leaderboard filtered by class - more specific than course
 export const useClassLeaderboard = (classId?: string, limit: number = 50) => {

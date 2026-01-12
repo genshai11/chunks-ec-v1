@@ -22,7 +22,9 @@ export interface LessonProgress {
   completionPercent: number;
 }
 
-export interface CourseProgress {
+export interface ClassProgress {
+  classId: string | null;
+  className: string;
   courseId: string;
   courseName: string;
   lessons: LessonProgress[];
@@ -33,6 +35,9 @@ export interface CourseProgress {
   completionPercent: number;
 }
 
+// Keep CourseProgress as alias for backward compatibility
+export type CourseProgress = ClassProgress;
+
 export const useProgressStats = () => {
   const { user } = useAuth();
 
@@ -41,10 +46,13 @@ export const useProgressStats = () => {
     queryFn: async () => {
       if (!user?.id) return null;
 
-      // Fetch enrolled courses with lessons
+      // Fetch enrolled classes with course lessons
       const { data: enrollments, error: enrollError } = await supabase
         .from('enrollments')
         .select(`
+          id,
+          class_id,
+          course_classes:class_id (id, class_name, class_code),
           course:courses (
             id, name,
             lessons (id, lesson_name, categories, order_index)
@@ -73,19 +81,20 @@ export const useProgressStats = () => {
         progressMap.get(key)!.push(p);
       });
 
-      // Calculate course progress
-      const courseProgressList: CourseProgress[] = [];
+      // Calculate class progress (based on enrollments)
+      const classProgressList: ClassProgress[] = [];
 
       enrollments?.forEach((enrollment: any) => {
         const course = enrollment.course;
+        const classInfo = enrollment.course_classes;
         if (!course) return;
 
         const lessonProgressList: LessonProgress[] = [];
-        let courseTotalItems = 0;
-        let coursePracticedItems = 0;
-        let courseMasteredItems = 0;
-        let courseTotalScore = 0;
-        let courseScoreCount = 0;
+        let classTotalItems = 0;
+        let classPracticedItems = 0;
+        let classMasteredItems = 0;
+        let classTotalScore = 0;
+        let classScoreCount = 0;
 
         // Sort lessons by order_index
         const sortedLessons = [...(course.lessons || [])].sort(
@@ -146,36 +155,38 @@ export const useProgressStats = () => {
               : 0
           });
 
-          courseTotalItems += lessonTotalItems;
-          coursePracticedItems += lessonPracticedItems;
-          courseMasteredItems += lessonMasteredItems;
+          classTotalItems += lessonTotalItems;
+          classPracticedItems += lessonPracticedItems;
+          classMasteredItems += lessonMasteredItems;
           if (lessonScoreCount > 0) {
-            courseTotalScore += lessonTotalScore;
-            courseScoreCount += lessonScoreCount;
+            classTotalScore += lessonTotalScore;
+            classScoreCount += lessonScoreCount;
           }
         });
 
-        const courseAvgScore = courseScoreCount > 0 ? courseTotalScore / courseScoreCount : 0;
+        const classAvgScore = classScoreCount > 0 ? classTotalScore / classScoreCount : 0;
 
-        courseProgressList.push({
+        classProgressList.push({
+          classId: classInfo?.id || null,
+          className: classInfo?.class_name || course.name,
           courseId: course.id,
           courseName: course.name,
           lessons: lessonProgressList,
-          totalItems: courseTotalItems,
-          practicedItems: coursePracticedItems,
-          masteredItems: courseMasteredItems,
-          avgScore: Math.round(courseAvgScore),
-          completionPercent: courseTotalItems > 0 
-            ? Math.round((coursePracticedItems / courseTotalItems) * 100) 
+          totalItems: classTotalItems,
+          practicedItems: classPracticedItems,
+          masteredItems: classMasteredItems,
+          avgScore: Math.round(classAvgScore),
+          completionPercent: classTotalItems > 0 
+            ? Math.round((classPracticedItems / classTotalItems) * 100) 
             : 0
         });
       });
 
-      // Calculate overall category mastery across all courses
+      // Calculate overall category mastery across all classes
       const categoryMasteryMap = new Map<string, { practiced: number; mastered: number; total: number; scores: number[] }>();
       
-      courseProgressList.forEach(course => {
-        course.lessons.forEach(lesson => {
+      classProgressList.forEach(cls => {
+        cls.lessons.forEach(lesson => {
           lesson.categories.forEach(cat => {
             if (!categoryMasteryMap.has(cat.category)) {
               categoryMasteryMap.set(cat.category, { practiced: 0, mastered: 0, total: 0, scores: [] });
@@ -201,13 +212,15 @@ export const useProgressStats = () => {
       }));
 
       return {
-        courses: courseProgressList,
+        classes: classProgressList,
+        // Keep 'courses' as alias for backward compatibility
+        courses: classProgressList,
         categoryMastery,
-        totalItems: courseProgressList.reduce((sum, c) => sum + c.totalItems, 0),
-        totalPracticed: courseProgressList.reduce((sum, c) => sum + c.practicedItems, 0),
-        totalMastered: courseProgressList.reduce((sum, c) => sum + c.masteredItems, 0),
-        overallCompletion: courseProgressList.length > 0
-          ? Math.round(courseProgressList.reduce((sum, c) => sum + c.completionPercent, 0) / courseProgressList.length)
+        totalItems: classProgressList.reduce((sum, c) => sum + c.totalItems, 0),
+        totalPracticed: classProgressList.reduce((sum, c) => sum + c.practicedItems, 0),
+        totalMastered: classProgressList.reduce((sum, c) => sum + c.masteredItems, 0),
+        overallCompletion: classProgressList.length > 0
+          ? Math.round(classProgressList.reduce((sum, c) => sum + c.completionPercent, 0) / classProgressList.length)
           : 0
       };
     },

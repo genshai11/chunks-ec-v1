@@ -9,7 +9,8 @@ import {
   Sparkles,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Users
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/hooks/useUserData";
-import { useCourses, useEnrollments, useCourseLessons } from "@/hooks/useCourses";
+import { useEnrollments, useCourseLessons } from "@/hooks/useCourses";
 import { useUserStats } from "@/hooks/usePractice";
 import { useProgressStats } from "@/hooks/useProgressStats";
 import { CoinBadge } from "@/components/ui/CoinBadge";
@@ -27,32 +28,31 @@ import { cn } from "@/lib/utils";
 
 const Index = () => {
   const { data: profile } = useProfile();
-  const { data: courses, isLoading: coursesLoading } = useCourses();
   const { data: enrollments, isLoading: enrollmentsLoading } = useEnrollments();
   const { data: userStats } = useUserStats();
   const { data: wallet } = useWallet();
   const { data: progressStats } = useProgressStats();
 
-  const enrolledCourseIds = enrollments?.map(e => e.course_id) || [];
+  // Get first enrollment (class-based)
   const firstEnrollment = enrollments?.[0];
-  const firstEnrolledCourse = courses?.find(c => c.id === firstEnrollment?.course_id);
-  const firstClass = firstEnrollment?.course_classes;
+  const enrolledClass = firstEnrollment?.course_classes;
+  const enrolledCourse = firstEnrollment?.courses;
 
-  const { data: lessons } = useCourseLessons(firstEnrolledCourse?.id || null);
+  const { data: lessons, isLoading: lessonsLoading } = useCourseLessons(enrolledCourse?.id || null);
 
-  // Calculate deadlines based on class schedule (preferred) or enrollment start_date
+  // Calculate deadlines based on class schedule
   const lessonDeadlines = firstEnrollment && lessons 
     ? calculateLessonDeadlines(
-        firstClass?.start_date || firstEnrollment.start_date || new Date().toISOString(),
-        firstClass?.schedule_days || firstEnrolledCourse?.schedule_days || ['monday', 'wednesday', 'friday'],
+        enrolledClass?.start_date || firstEnrollment.start_date || new Date().toISOString(),
+        enrolledClass?.schedule_days || ['monday', 'wednesday', 'friday'],
         lessons.map(l => ({ id: l.id, lesson_name: l.lesson_name, order_index: l.order_index }))
       )
     : null;
 
   // Find lesson progress from progressStats
   const getLessonProgress = (lessonId: string) => {
-    const courseProgress = progressStats?.courses?.find(c => c.courseId === firstEnrolledCourse?.id);
-    return courseProgress?.lessons.find(l => l.lessonId === lessonId);
+    const classProgress = progressStats?.classes?.find(c => c.courseId === enrolledCourse?.id);
+    return classProgress?.lessons.find(l => l.lessonId === lessonId);
   };
 
   // Find next lesson to practice (first incomplete one)
@@ -61,7 +61,7 @@ const Index = () => {
     return !progress || progress.completionPercent < 100;
   }) || lessons?.[0];
 
-  const isLoading = coursesLoading || enrollmentsLoading;
+  const isLoading = enrollmentsLoading || lessonsLoading;
 
   if (isLoading) {
     return (
@@ -71,7 +71,7 @@ const Index = () => {
     );
   }
 
-  const hasEnrolledCourses = enrolledCourseIds.length > 0;
+  const hasEnrollments = enrollments && enrollments.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,9 +91,9 @@ const Index = () => {
                   Hey, {profile?.display_name?.split(' ')[0] || "there"} 👋
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  {hasEnrolledCourses 
+                  {hasEnrollments 
                     ? "Ready for today's practice?" 
-                    : "Let's get you started with a course"
+                    : "Contact your admin to get enrolled"
                   }
                 </p>
               </div>
@@ -139,7 +139,7 @@ const Index = () => {
           </motion.div>
 
           {/* Primary CTA - Start Practice */}
-          {hasEnrolledCourses && nextLesson ? (
+          {hasEnrollments && nextLesson ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -173,41 +173,41 @@ const Index = () => {
                 </div>
               </Link>
             </motion.div>
-          ) : !hasEnrolledCourses ? (
+          ) : !hasEnrollments ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
               className="mb-8"
             >
-              <Link to="/courses">
-                <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-accent/20 via-accent/10 to-transparent border border-accent/30 p-6 lg:p-8 cursor-pointer transition-all hover:border-accent/50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <BookOpen className="w-5 h-5 text-accent" />
-                        <span className="text-sm font-medium text-accent">Get Started</span>
-                      </div>
-                      <h2 className="text-xl lg:text-2xl font-display font-bold text-foreground mb-2">
-                        Enroll in Your First Course
-                      </h2>
-                      <p className="text-muted-foreground text-sm">
-                        Browse available courses and start learning
-                      </p>
+              <div className="rounded-2xl bg-gradient-to-br from-muted/50 via-muted/30 to-transparent border border-border/50 p-6 lg:p-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="w-5 h-5 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">Get Started</span>
                     </div>
-                    
-                    <Button size="lg" className="gradient-gold gap-2">
-                      Browse Courses
+                    <h2 className="text-xl lg:text-2xl font-display font-bold text-foreground mb-2">
+                      No Class Enrollment Yet
+                    </h2>
+                    <p className="text-muted-foreground text-sm">
+                      Contact your admin or teacher to get enrolled in a class
+                    </p>
+                  </div>
+                  
+                  <Link to="/courses">
+                    <Button size="lg" variant="secondary" className="gap-2">
+                      View Classes
                       <ArrowRight className="w-4 h-4" />
                     </Button>
-                  </div>
+                  </Link>
                 </div>
-              </Link>
+              </div>
             </motion.div>
           ) : null}
 
           {/* Lesson List with Progress & Deadlines */}
-          {hasEnrolledCourses && lessons && lessons.length > 0 && (
+          {hasEnrollments && lessons && lessons.length > 0 && (
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -215,7 +215,7 @@ const Index = () => {
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-display font-semibold text-foreground">
-                  {firstClass?.class_name || firstEnrolledCourse?.name || 'Lessons'}
+                  {enrolledClass?.class_name || enrolledCourse?.name || 'Lessons'}
                 </h2>
                 <Link to="/courses" className="text-sm text-primary hover:underline">
                   View all →
