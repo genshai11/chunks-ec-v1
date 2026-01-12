@@ -36,14 +36,15 @@ const Index = () => {
   const enrolledCourseIds = enrollments?.map(e => e.course_id) || [];
   const firstEnrollment = enrollments?.[0];
   const firstEnrolledCourse = courses?.find(c => c.id === firstEnrollment?.course_id);
+  const firstClass = firstEnrollment?.course_classes;
 
   const { data: lessons } = useCourseLessons(firstEnrolledCourse?.id || null);
 
-  // Calculate deadlines based on enrollment start date
-  const lessonDeadlines = firstEnrollment?.start_date && lessons 
+  // Calculate deadlines based on class schedule (preferred) or enrollment start_date
+  const lessonDeadlines = firstEnrollment && lessons 
     ? calculateLessonDeadlines(
-        firstEnrollment.start_date,
-        firstEnrolledCourse?.schedule_days || ['monday', 'wednesday', 'friday'],
+        firstClass?.start_date || firstEnrollment.start_date || new Date().toISOString(),
+        firstClass?.schedule_days || firstEnrolledCourse?.schedule_days || ['monday', 'wednesday', 'friday'],
         lessons.map(l => ({ id: l.id, lesson_name: l.lesson_name, order_index: l.order_index }))
       )
     : null;
@@ -214,7 +215,7 @@ const Index = () => {
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-display font-semibold text-foreground">
-                  {firstEnrolledCourse?.name || 'Lessons'}
+                  {firstClass?.class_name || firstEnrolledCourse?.name || 'Lessons'}
                 </h2>
                 <Link to="/courses" className="text-sm text-primary hover:underline">
                   View all →

@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  useCourseClasses, 
   useAllCourseClasses, 
   useCreateCourseClass, 
   useUpdateCourseClass, 
-  useDeleteCourseClass 
+  useDeleteCourseClass,
+  useClassEnrollments,
+  useAddUserToClass,
+  useRemoveUserFromClass,
+  useAvailableUsers
 } from '@/hooks/useCourseClasses';
 import { useCourses, useCourseLessons } from '@/hooks/useCourses';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { calculateLessonDeadlines, formatScheduleDays } from '@/lib/scheduleUtils';
 import { format } from 'date-fns';
@@ -27,7 +31,10 @@ import {
   Clock,
   BookOpen,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  UserPlus,
+  UserMinus,
+  Search
 } from 'lucide-react';
 import {
   Dialog,
@@ -54,6 +61,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const WEEKDAYS = [
   { id: 'monday', label: 'Mon' },
@@ -288,7 +296,7 @@ const ClassManagement: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-display font-bold">Classes</h2>
-          <p className="text-muted-foreground">Manage class instances with schedules & deadlines</p>
+          <p className="text-muted-foreground">Manage class instances, learners & schedules</p>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={(open) => {
@@ -370,7 +378,7 @@ const ClassManagement: React.FC = () => {
   );
 };
 
-// Separate component for class card with lesson schedule
+// Separate component for class card with learner management
 const ClassCard: React.FC<{
   cls: any;
   index: number;
@@ -380,6 +388,14 @@ const ClassCard: React.FC<{
   onDelete: () => void;
 }> = ({ cls, index, isExpanded, onToggleExpand, onEdit, onDelete }) => {
   const { data: lessons } = useCourseLessons(cls.course_id);
+  const { data: enrollments, isLoading: enrollmentsLoading } = useClassEnrollments(cls.id);
+  const { data: allUsers } = useAvailableUsers();
+  const addUser = useAddUserToClass();
+  const removeUser = useRemoveUserFromClass();
+  
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [userSearch, setUserSearch] = useState('');
   
   // Calculate deadlines for this class
   const lessonDeadlines = lessons && cls.start_date
@@ -389,6 +405,26 @@ const ClassCard: React.FC<{
         lessons.map(l => ({ id: l.id, lesson_name: l.lesson_name, order_index: l.order_index }))
       )
     : [];
+
+  // Filter users not already enrolled
+  const enrolledUserIds = new Set(enrollments?.map(e => (e.profiles as any)?.id) || []);
+  const availableUsers = allUsers?.filter(u => !enrolledUserIds.has(u.id)) || [];
+  const filteredUsers = availableUsers.filter(u => 
+    u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+    u.display_name?.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
+  const handleAddUser = async () => {
+    if (!selectedUserId) return;
+    await addUser.mutateAsync({
+      userId: selectedUserId,
+      classId: cls.id,
+      courseId: cls.course_id
+    });
+    setIsAddUserOpen(false);
+    setSelectedUserId('');
+    setUserSearch('');
+  };
 
   return (
     <motion.div
@@ -413,6 +449,10 @@ const ClassCard: React.FC<{
                       {cls.courses.code}
                     </Badge>
                   )}
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    <Users className="w-3 h-3" />
+                    {enrollments?.length || 0}
+                  </Badge>
                 </div>
                 <CardTitle className="text-lg mt-1">{cls.class_name}</CardTitle>
               </div>
@@ -437,7 +477,7 @@ const ClassCard: React.FC<{
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Class</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to delete "{cls.class_name}"? This will remove learner enrollments.
+                      Are you sure you want to delete "{cls.class_name}"? This will remove all learner enrollments.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -470,39 +510,188 @@ const ClassCard: React.FC<{
             </Badge>
           </div>
           
-          {/* Collapsible lesson schedule */}
+          {/* Collapsible content with tabs */}
           <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground hover:text-foreground">
                 <span className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4" />
-                  {lessons?.length || 0} Lessons with Deadlines
+                  <Users className="w-4 h-4" />
+                  {enrollments?.length || 0} Learners • {lessons?.length || 0} Lessons
                 </span>
                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
-                {lessonDeadlines.map((ld, i) => (
-                  <div 
-                    key={ld.lessonId}
-                    className="flex items-center justify-between p-2 rounded-lg bg-secondary/30 text-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-xs font-medium">
-                        {ld.orderIndex}
-                      </span>
-                      <span className="truncate max-w-[200px]">{ld.lessonName}</span>
+              <Tabs defaultValue="learners" className="mt-3">
+                <TabsList className="w-full">
+                  <TabsTrigger value="learners" className="flex-1 gap-2">
+                    <Users className="w-4 h-4" />
+                    Learners
+                  </TabsTrigger>
+                  <TabsTrigger value="schedule" className="flex-1 gap-2">
+                    <BookOpen className="w-4 h-4" />
+                    Schedule
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="learners" className="mt-3 space-y-3">
+                  {/* Add User Button */}
+                  <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full gap-2">
+                        <UserPlus className="w-4 h-4" />
+                        Add Learner
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Learner to Class</DialogTitle>
+                        <DialogDescription>
+                          Search and select a user to add to {cls.class_name}
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4 py-4">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search by name or email..."
+                            value={userSearch}
+                            onChange={(e) => setUserSearch(e.target.value)}
+                            className="pl-10"
+                          />
+                        </div>
+                        
+                        <div className="max-h-60 overflow-y-auto space-y-2">
+                          {filteredUsers.length === 0 ? (
+                            <p className="text-center text-sm text-muted-foreground py-4">
+                              {availableUsers.length === 0 ? 'All users are already enrolled' : 'No users found'}
+                            </p>
+                          ) : (
+                            filteredUsers.slice(0, 10).map(user => (
+                              <div
+                                key={user.id}
+                                onClick={() => setSelectedUserId(user.id)}
+                                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                                  selectedUserId === user.id 
+                                    ? 'bg-primary/10 border border-primary/30' 
+                                    : 'bg-secondary/30 hover:bg-secondary/50'
+                                }`}
+                              >
+                                <Avatar className="w-8 h-8">
+                                  <AvatarImage src={user.avatar_url || undefined} />
+                                  <AvatarFallback className="text-xs">
+                                    {user.display_name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{user.display_name || 'No name'}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                      
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={handleAddUser}
+                          disabled={!selectedUserId || addUser.isPending}
+                        >
+                          {addUser.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                          Add to Class
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                  
+                  {/* Enrolled Users List */}
+                  {enrollmentsLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
                     </div>
-                    <Badge 
-                      variant={ld.isPast ? "destructive" : ld.isToday ? "default" : "outline"}
-                      className="text-xs shrink-0"
-                    >
-                      {ld.deadlineFormatted}
-                    </Badge>
+                  ) : !enrollments || enrollments.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-4">
+                      No learners enrolled yet
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {enrollments.map((enrollment: any) => (
+                        <div 
+                          key={enrollment.id}
+                          className="flex items-center justify-between p-2 rounded-lg bg-secondary/30"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={enrollment.profiles?.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {enrollment.profiles?.display_name?.[0]?.toUpperCase() || enrollment.profiles?.email?.[0]?.toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium">{enrollment.profiles?.display_name || 'No name'}</p>
+                              <p className="text-xs text-muted-foreground">{enrollment.profiles?.email}</p>
+                            </div>
+                          </div>
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <UserMinus className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove Learner</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Remove {enrollment.profiles?.display_name || enrollment.profiles?.email} from this class?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => removeUser.mutate(enrollment.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Remove
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="schedule" className="mt-3">
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {lessonDeadlines.map((ld, i) => (
+                      <div 
+                        key={ld.lessonId}
+                        className="flex items-center justify-between p-2 rounded-lg bg-secondary/30 text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-xs font-medium">
+                            {ld.orderIndex}
+                          </span>
+                          <span className="truncate max-w-[200px]">{ld.lessonName}</span>
+                        </div>
+                        <Badge 
+                          variant={ld.isPast ? "destructive" : ld.isToday ? "default" : "outline"}
+                          className="text-xs shrink-0"
+                        >
+                          {ld.deadlineFormatted}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </TabsContent>
+              </Tabs>
             </CollapsibleContent>
           </Collapsible>
         </CardContent>

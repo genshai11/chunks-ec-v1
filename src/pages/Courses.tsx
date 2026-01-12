@@ -1,72 +1,54 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { BookOpen, Loader2, CheckCircle2, ArrowRight, Mic, Calendar, Clock } from "lucide-react";
+import { BookOpen, Loader2, CheckCircle2, ArrowRight, Mic, Calendar, Clock, Users } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { useCourses, useEnrollments, useCourseLessons, useEnrollInCourse, Course } from "@/hooks/useCourses";
+import { useEnrollments, useCourseLessons } from "@/hooks/useCourses";
 import { useProgressStats } from "@/hooks/useProgressStats";
 import { formatScheduleDays, calculateLessonDeadlines, getDeadlineStatus } from "@/lib/scheduleUtils";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 const Courses = () => {
-  const { data: courses, isLoading: coursesLoading } = useCourses();
   const { data: enrollments, isLoading: enrollmentsLoading } = useEnrollments();
   const { data: progressStats } = useProgressStats();
-  const enrollInCourse = useEnrollInCourse();
   
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [enrollDialogCourse, setEnrollDialogCourse] = useState<Course | null>(null);
-  const [enrollStartDate, setEnrollStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
 
-  const enrolledCourseIds = enrollments?.map(e => e.course_id) || [];
-  const selectedCourse = courses?.find(c => c.id === selectedCourseId);
-  const selectedEnrollment = enrollments?.find(e => e.course_id === selectedCourseId);
+  const selectedEnrollment = enrollments?.find(e => e.id === selectedEnrollmentId);
+  const selectedCourse = selectedEnrollment?.courses;
+  const selectedClass = selectedEnrollment?.course_classes;
   
-  const { data: lessons, isLoading: lessonsLoading } = useCourseLessons(selectedCourseId);
+  const { data: lessons, isLoading: lessonsLoading } = useCourseLessons(selectedCourse?.id || null);
 
-  // Calculate deadlines for selected course
-  const lessonDeadlines = selectedEnrollment?.start_date && lessons && selectedCourse
+  // Calculate deadlines based on class schedule (or enrollment start_date)
+  const lessonDeadlines = selectedEnrollment && lessons 
     ? calculateLessonDeadlines(
-        selectedEnrollment.start_date,
-        selectedCourse.schedule_days || ['monday', 'wednesday', 'friday'],
+        selectedClass?.start_date || selectedEnrollment.start_date || new Date().toISOString(),
+        selectedClass?.schedule_days || ['monday', 'wednesday', 'friday'],
         lessons.map(l => ({ id: l.id, lesson_name: l.lesson_name, order_index: l.order_index }))
       )
     : null;
 
   // Get lesson progress
   const getLessonProgress = (lessonId: string) => {
-    const courseProgress = progressStats?.courses?.find(c => c.courseId === selectedCourseId);
+    const courseProgress = progressStats?.courses?.find(c => c.courseId === selectedCourse?.id);
     return courseProgress?.lessons.find(l => l.lessonId === lessonId);
   };
 
-  const isLoading = coursesLoading || enrollmentsLoading;
-
-  const confirmEnroll = () => {
-    if (enrollDialogCourse) {
-      enrollInCourse.mutate({ 
-        courseId: enrollDialogCourse.id,
-        startDate: enrollStartDate 
-      });
-      setEnrollDialogCourse(null);
-      setEnrollStartDate(format(new Date(), 'yyyy-MM-dd'));
-    }
-  };
-
-  if (isLoading) {
+  if (enrollmentsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  const hasEnrollments = enrollments && enrollments.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -81,43 +63,47 @@ const Courses = () => {
             className="mb-8"
           >
             <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground mb-2">
-              Courses
+              My Classes
             </h1>
             <p className="text-muted-foreground">
-              {selectedCourse ? `${selectedCourse.name} • ${lessons?.length || 0} lessons` : "Browse and enroll in courses"}
+              {selectedEnrollment 
+                ? `${selectedClass?.class_name || selectedCourse?.name} • ${lessons?.length || 0} lessons` 
+                : hasEnrollments 
+                  ? "View your enrolled classes and lessons"
+                  : "Contact your admin to get enrolled in a class"
+              }
             </p>
           </motion.div>
 
-          {/* Course Cards or Lessons */}
-          {!selectedCourseId ? (
-            // Course Selection View
+          {/* Enrollment Cards or Lessons */}
+          {!selectedEnrollmentId ? (
+            // Enrollment Selection View
             <div className="grid gap-4">
-              {courses?.length === 0 ? (
+              {!hasEnrollments ? (
                 <Card className="border-dashed">
                   <CardContent className="py-12 text-center">
-                    <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      No courses available yet.
+                    <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-medium text-lg mb-2">No Classes Yet</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      You haven't been enrolled in any classes. Contact your admin or teacher to get enrolled.
                     </p>
                   </CardContent>
                 </Card>
               ) : (
-                courses?.map((course, index) => {
-                  const isEnrolled = enrolledCourseIds.includes(course.id);
-                  const enrollment = enrollments?.find(e => e.course_id === course.id);
+                enrollments?.map((enrollment, index) => {
+                  const course = enrollment.courses;
+                  const classInfo = enrollment.course_classes;
                   
                   return (
                     <motion.div
-                      key={course.id}
+                      key={enrollment.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                     >
-                      <Card className={cn(
-                        "group cursor-pointer transition-all hover:border-primary/50",
-                        isEnrolled && "border-primary/30 bg-primary/5"
-                      )}
-                      onClick={() => isEnrolled ? setSelectedCourseId(course.id) : setEnrollDialogCourse(course)}
+                      <Card 
+                        className="group cursor-pointer transition-all hover:border-primary/50 border-primary/30 bg-primary/5"
+                        onClick={() => setSelectedEnrollmentId(enrollment.id)}
                       >
                         <CardContent className="p-6">
                           <div className="flex items-start justify-between gap-4">
@@ -128,43 +114,49 @@ const Courses = () => {
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2">
-                                    <CardTitle className="text-lg">{course.name}</CardTitle>
-                                    {isEnrolled && (
-                                      <Badge className="bg-primary/20 text-primary border-0">
-                                        <CheckCircle2 size={12} className="mr-1" />
-                                        Enrolled
-                                      </Badge>
-                                    )}
+                                    <h3 className="text-lg font-semibold">
+                                      {classInfo?.class_name || course?.name}
+                                    </h3>
+                                    <Badge className="bg-primary/20 text-primary border-0">
+                                      <CheckCircle2 size={12} className="mr-1" />
+                                      Enrolled
+                                    </Badge>
                                   </div>
                                   <div className="flex items-center gap-2 mt-1">
-                                    <Badge variant="outline">{course.code}</Badge>
-                                    {course.schedule_days && (
-                                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                        <Clock className="w-3 h-3" />
-                                        {formatScheduleDays(course.schedule_days)}
-                                      </span>
+                                    {classInfo && (
+                                      <Badge variant="outline">{classInfo.class_code}</Badge>
+                                    )}
+                                    {course && (
+                                      <Badge variant="secondary">{course.code}</Badge>
                                     )}
                                   </div>
                                 </div>
                               </div>
-                              {course.description && (
+                              
+                              {course?.description && (
                                 <CardDescription className="mt-3 line-clamp-2">
                                   {course.description}
                                 </CardDescription>
                               )}
-                              {isEnrolled && enrollment?.start_date && (
-                                <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  Started: {format(new Date(enrollment.start_date), 'MMM d, yyyy')}
-                                </div>
-                              )}
+                              
+                              <div className="mt-3 flex items-center gap-4 flex-wrap text-xs text-muted-foreground">
+                                {classInfo?.start_date && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    Started: {format(new Date(classInfo.start_date), 'MMM d, yyyy')}
+                                  </span>
+                                )}
+                                {classInfo?.schedule_days && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatScheduleDays(classInfo.schedule_days)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             
-                            <Button 
-                              variant={isEnrolled ? "secondary" : "default"}
-                              className={!isEnrolled ? "gradient-primary" : ""}
-                            >
-                              {isEnrolled ? "View Lessons" : "Enroll"}
+                            <Button variant="secondary">
+                              View Lessons
                               <ArrowRight className="w-4 h-4 ml-2" />
                             </Button>
                           </div>
@@ -181,9 +173,9 @@ const Courses = () => {
               <Button 
                 variant="ghost" 
                 className="mb-4"
-                onClick={() => setSelectedCourseId(null)}
+                onClick={() => setSelectedEnrollmentId(null)}
               >
-                ← Back to Courses
+                ← Back to Classes
               </Button>
               
               {lessonsLoading ? (
@@ -286,52 +278,6 @@ const Courses = () => {
           )}
         </div>
       </main>
-
-      {/* Enrollment Dialog with Start Date */}
-      <Dialog open={!!enrollDialogCourse} onOpenChange={() => setEnrollDialogCourse(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Enroll in {enrollDialogCourse?.name}</DialogTitle>
-            <DialogDescription>
-              Set your personal start date to calculate lesson deadlines based on the course schedule.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Your Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={enrollStartDate}
-                onChange={(e) => setEnrollStartDate(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Lesson deadlines will be calculated from this date
-              </p>
-            </div>
-            
-            {enrollDialogCourse?.schedule_days && (
-              <div className="p-3 rounded-lg bg-secondary/30 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span>Schedule: {formatScheduleDays(enrollDialogCourse.schedule_days)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setEnrollDialogCourse(null)}>
-              Cancel
-            </Button>
-            <Button onClick={confirmEnroll} disabled={enrollInCourse.isPending}>
-              {enrollInCourse.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Enroll Now
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
