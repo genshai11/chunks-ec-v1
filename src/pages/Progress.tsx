@@ -12,7 +12,8 @@ import {
   ChevronRight,
   CheckCircle2,
   Star,
-  Layers
+  Layers,
+  Users
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,7 @@ import { Progress as ProgressBar } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useUserStats } from "@/hooks/usePractice";
 import { useStreak } from "@/hooks/useStreak";
-import { useProgressStats, CourseProgress, LessonProgress } from "@/hooks/useProgressStats";
+import { useProgressStats, ClassProgress, LessonProgress } from "@/hooks/useProgressStats";
 import { StreakDisplay } from "@/components/ui/StreakDisplay";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -29,18 +30,18 @@ const Progress = () => {
   const { data: userStats, isLoading: statsLoading } = useUserStats();
   const { data: streakData } = useStreak();
   const { data: progressStats, isLoading: progressLoading } = useProgressStats();
-  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
+  const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
 
   const isLoading = statsLoading || progressLoading;
 
-  const toggleCourse = (courseId: string) => {
-    setExpandedCourses(prev => {
+  const toggleClass = (classId: string) => {
+    setExpandedClasses(prev => {
       const next = new Set(prev);
-      if (next.has(courseId)) {
-        next.delete(courseId);
+      if (next.has(classId)) {
+        next.delete(classId);
       } else {
-        next.add(courseId);
+        next.add(classId);
       }
       return next;
     });
@@ -94,7 +95,7 @@ const Progress = () => {
               Your Progress
             </h1>
             <p className="text-muted-foreground text-sm">
-              Track mastery across courses, lessons & categories
+              Track mastery across classes, lessons & categories
             </p>
           </motion.div>
 
@@ -191,7 +192,7 @@ const Progress = () => {
             </motion.div>
           )}
 
-          {/* Course Progress Breakdown */}
+          {/* Class Progress Breakdown */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -201,147 +202,150 @@ const Progress = () => {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                  Course Progress
+                  <Users className="w-5 h-5 text-primary" />
+                  Class Progress
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {progressStats?.courses && progressStats.courses.length > 0 ? (
+                {progressStats?.classes && progressStats.classes.length > 0 ? (
                   <div className="space-y-3">
-                    {progressStats.courses.map((course: CourseProgress) => (
-                      <div key={course.courseId} className="border border-border/50 rounded-xl overflow-hidden">
-                        {/* Course Header */}
-                        <button
-                          onClick={() => toggleCourse(course.courseId)}
-                          className="w-full p-4 flex items-center justify-between bg-secondary/20 hover:bg-secondary/40 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            {expandedCourses.has(course.courseId) ? (
-                              <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                            )}
-                            <div className="text-left">
-                              <div className="font-semibold">{course.courseName}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {course.lessons.length} lessons • {course.practicedItems}/{course.totalItems} items
+                    {progressStats.classes.map((cls: ClassProgress) => {
+                      const classKey = cls.classId || cls.courseId;
+                      return (
+                        <div key={classKey} className="border border-border/50 rounded-xl overflow-hidden">
+                          {/* Class Header */}
+                          <button
+                            onClick={() => toggleClass(classKey)}
+                            className="w-full p-4 flex items-center justify-between bg-secondary/20 hover:bg-secondary/40 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              {expandedClasses.has(classKey) ? (
+                                <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                              )}
+                              <div className="text-left">
+                                <div className="font-semibold">{cls.className}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {cls.lessons.length} lessons • {cls.practicedItems}/{cls.totalItems} items
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <div className={cn("text-lg font-bold", getScoreColor(course.avgScore))}>
-                                {course.avgScore > 0 ? `${course.avgScore}%` : '—'}
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <div className={cn("text-lg font-bold", getScoreColor(cls.avgScore))}>
+                                  {cls.avgScore > 0 ? `${cls.avgScore}%` : '—'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">avg score</div>
                               </div>
-                              <div className="text-xs text-muted-foreground">avg score</div>
-                            </div>
-                            <div className="w-16">
-                              <div className="text-sm font-bold text-center mb-1">
-                                {course.completionPercent}%
+                              <div className="w-16">
+                                <div className="text-sm font-bold text-center mb-1">
+                                  {cls.completionPercent}%
+                                </div>
+                                <ProgressBar value={cls.completionPercent} className="h-2" />
                               </div>
-                              <ProgressBar value={course.completionPercent} className="h-2" />
                             </div>
-                          </div>
-                        </button>
+                          </button>
 
-                        {/* Lessons */}
-                        <AnimatePresence>
-                          {expandedCourses.has(course.courseId) && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="border-t border-border/30">
-                                {course.lessons.map((lesson: LessonProgress) => (
-                                  <div key={lesson.lessonId} className="border-b border-border/20 last:border-0">
-                                    {/* Lesson Header */}
-                                    <button
-                                      onClick={() => toggleLesson(lesson.lessonId)}
-                                      className="w-full px-4 py-3 pl-10 flex items-center justify-between hover:bg-secondary/20 transition-colors"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        {expandedLessons.has(lesson.lessonId) ? (
-                                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                                        ) : (
-                                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                                        )}
-                                        <span className="text-sm font-medium">{lesson.lessonName}</span>
-                                        {lesson.completionPercent === 100 && (
-                                          <CheckCircle2 className="w-4 h-4 text-success" />
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-4">
-                                        <span className={cn("text-sm font-medium", getScoreColor(lesson.avgScore))}>
-                                          {lesson.avgScore > 0 ? `${lesson.avgScore}%` : '—'}
-                                        </span>
-                                        <div className="w-12">
-                                          <ProgressBar value={lesson.completionPercent} className="h-1.5" />
+                          {/* Lessons */}
+                          <AnimatePresence>
+                            {expandedClasses.has(classKey) && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="border-t border-border/30">
+                                  {cls.lessons.map((lesson: LessonProgress) => (
+                                    <div key={lesson.lessonId} className="border-b border-border/20 last:border-0">
+                                      {/* Lesson Header */}
+                                      <button
+                                        onClick={() => toggleLesson(lesson.lessonId)}
+                                        className="w-full px-4 py-3 pl-10 flex items-center justify-between hover:bg-secondary/20 transition-colors"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          {expandedLessons.has(lesson.lessonId) ? (
+                                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                          ) : (
+                                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                          )}
+                                          <span className="text-sm font-medium">{lesson.lessonName}</span>
+                                          {lesson.completionPercent === 100 && (
+                                            <CheckCircle2 className="w-4 h-4 text-success" />
+                                          )}
                                         </div>
-                                        <span className="text-xs text-muted-foreground w-12 text-right">
-                                          {lesson.completionPercent}%
-                                        </span>
-                                      </div>
-                                    </button>
+                                        <div className="flex items-center gap-4">
+                                          <span className={cn("text-sm font-medium", getScoreColor(lesson.avgScore))}>
+                                            {lesson.avgScore > 0 ? `${lesson.avgScore}%` : '—'}
+                                          </span>
+                                          <div className="w-12">
+                                            <ProgressBar value={lesson.completionPercent} className="h-1.5" />
+                                          </div>
+                                          <span className="text-xs text-muted-foreground w-12 text-right">
+                                            {lesson.completionPercent}%
+                                          </span>
+                                        </div>
+                                      </button>
 
-                                    {/* Categories */}
-                                    <AnimatePresence>
-                                      {expandedLessons.has(lesson.lessonId) && (
-                                        <motion.div
-                                          initial={{ height: 0, opacity: 0 }}
-                                          animate={{ height: "auto", opacity: 1 }}
-                                          exit={{ height: 0, opacity: 0 }}
-                                          className="overflow-hidden bg-secondary/10"
-                                        >
-                                          <div className="px-4 py-2 pl-16 space-y-2">
-                                            {lesson.categories.map((cat) => (
-                                              <div 
-                                                key={cat.category}
-                                                className="flex items-center justify-between py-1.5"
-                                              >
-                                                <div className="flex items-center gap-2">
-                                                  <Badge variant="outline" className="text-xs">
-                                                    {cat.category}
-                                                  </Badge>
-                                                  <span className="text-xs text-muted-foreground">
-                                                    {cat.practicedItems}/{cat.totalItems}
-                                                  </span>
-                                                  {cat.masteredItems > 0 && (
-                                                    <span className="text-xs text-success flex items-center gap-0.5">
-                                                      <Star className="w-3 h-3" />
-                                                      {cat.masteredItems}
+                                      {/* Categories */}
+                                      <AnimatePresence>
+                                        {expandedLessons.has(lesson.lessonId) && (
+                                          <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            className="overflow-hidden bg-secondary/10"
+                                          >
+                                            <div className="px-4 py-2 pl-16 space-y-2">
+                                              {lesson.categories.map((cat) => (
+                                                <div 
+                                                  key={cat.category}
+                                                  className="flex items-center justify-between py-1.5"
+                                                >
+                                                  <div className="flex items-center gap-2">
+                                                    <Badge variant="outline" className="text-xs">
+                                                      {cat.category}
+                                                    </Badge>
+                                                    <span className="text-xs text-muted-foreground">
+                                                      {cat.practicedItems}/{cat.totalItems}
                                                     </span>
-                                                  )}
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                  <span className={cn("text-xs font-medium", getScoreColor(cat.avgScore))}>
-                                                    {cat.avgScore > 0 ? `${cat.avgScore}%` : '—'}
-                                                  </span>
-                                                  <div className="w-16">
-                                                    <ProgressBar value={cat.completionPercent} className="h-1" />
+                                                    {cat.masteredItems > 0 && (
+                                                      <span className="text-xs text-success flex items-center gap-0.5">
+                                                        <Star className="w-3 h-3" />
+                                                        {cat.masteredItems}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <div className="flex items-center gap-3">
+                                                    <span className={cn("text-xs font-medium", getScoreColor(cat.avgScore))}>
+                                                      {cat.avgScore > 0 ? `${cat.avgScore}%` : '—'}
+                                                    </span>
+                                                    <div className="w-16">
+                                                      <ProgressBar value={cat.completionPercent} className="h-1" />
+                                                    </div>
                                                   </div>
                                                 </div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
-                                  </div>
-                                ))}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    ))}
+                                              ))}
+                                            </div>
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
-                    <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>No courses enrolled yet.</p>
-                    <p className="text-sm">Enroll in a course to track your progress!</p>
+                    <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>No classes enrolled yet.</p>
+                    <p className="text-sm">Contact your admin to get enrolled in a class!</p>
                   </div>
                 )}
               </CardContent>
@@ -377,30 +381,30 @@ const Progress = () => {
                               {formatDistanceToNow(new Date(history.practiced_at), { addSuffix: true })}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className={cn("text-sm font-bold", getScoreColor(history.score))}>
+                          <div className="flex items-center gap-2">
+                            <span className={cn("text-sm font-bold", getScoreColor(history.score))}>
                               {history.score}%
-                            </div>
-                            <div className={cn(
-                              "text-xs",
-                              history.coins_earned >= 0 ? "text-success" : "text-destructive"
-                            )}>
-                              {history.coins_earned >= 0 ? "+" : ""}{history.coins_earned} 🪙
-                            </div>
+                            </span>
+                            {history.coins_earned > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{history.coins_earned} 🪙
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-muted-foreground text-sm">
-                      No activity yet. Start practicing!
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Clock className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No recent activity</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
             </motion.div>
 
-            {/* Quick Achievements */}
+            {/* Milestones */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -414,76 +418,50 @@ const Progress = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {[
-                      {
-                        id: "streak-3",
-                        icon: "🔥",
-                        name: "3-Day Streak",
-                        current: streakData?.current_streak || 0,
-                        target: 3,
-                        unlocked: (streakData?.current_streak || 0) >= 3
-                      },
-                      {
-                        id: "practice-10",
-                        icon: "🎯",
-                        name: "10 Practices",
-                        current: userStats?.totalPractice || 0,
-                        target: 10,
-                        unlocked: (userStats?.totalPractice || 0) >= 10
-                      },
-                      {
-                        id: "mastery-5",
-                        icon: "⭐",
-                        name: "5 Items Mastered",
-                        current: progressStats?.totalMastered || 0,
-                        target: 5,
-                        unlocked: (progressStats?.totalMastered || 0) >= 5
-                      },
-                      {
-                        id: "score-80",
-                        icon: "📈",
-                        name: "80% Avg Score",
-                        current: userStats?.avgScore || 0,
-                        target: 80,
-                        unlocked: (userStats?.avgScore || 0) >= 80
-                      }
-                    ].map((milestone) => (
-                      <div 
-                        key={milestone.id}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg border transition-all",
-                          milestone.unlocked 
-                            ? "bg-primary/10 border-primary/30" 
-                            : "bg-secondary/20 border-border/30"
-                        )}
-                      >
-                        <span className="text-2xl">{milestone.icon}</span>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className={cn(
-                              "font-medium text-sm",
-                              !milestone.unlocked && "text-muted-foreground"
-                            )}>
-                              {milestone.name}
-                            </span>
-                            {milestone.unlocked ? (
-                              <CheckCircle2 className="w-4 h-4 text-success" />
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                {milestone.current}/{milestone.target}
-                              </span>
-                            )}
-                          </div>
-                          {!milestone.unlocked && (
-                            <ProgressBar 
-                              value={Math.min(100, (milestone.current / milestone.target) * 100)} 
-                              className="h-1.5" 
-                            />
-                          )}
-                        </div>
+                  <div className="space-y-4">
+                    {/* Completion Milestone */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Complete 50% of items</span>
+                        <span className={cn("font-medium", (progressStats?.overallCompletion || 0) >= 50 ? "text-success" : "text-muted-foreground")}>
+                          {progressStats?.overallCompletion || 0}%
+                        </span>
                       </div>
-                    ))}
+                      <ProgressBar value={Math.min(100, ((progressStats?.overallCompletion || 0) / 50) * 100)} className="h-2" />
+                    </div>
+
+                    {/* Mastery Milestone */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Master 25 items</span>
+                        <span className={cn("font-medium", (progressStats?.totalMastered || 0) >= 25 ? "text-success" : "text-muted-foreground")}>
+                          {progressStats?.totalMastered || 0}/25
+                        </span>
+                      </div>
+                      <ProgressBar value={Math.min(100, ((progressStats?.totalMastered || 0) / 25) * 100)} className="h-2" />
+                    </div>
+
+                    {/* Practice Milestone */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Complete 100 practices</span>
+                        <span className={cn("font-medium", (userStats?.totalPractice || 0) >= 100 ? "text-success" : "text-muted-foreground")}>
+                          {userStats?.totalPractice || 0}/100
+                        </span>
+                      </div>
+                      <ProgressBar value={Math.min(100, ((userStats?.totalPractice || 0) / 100) * 100)} className="h-2" />
+                    </div>
+
+                    {/* Streak Milestone */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>7-day streak</span>
+                        <span className={cn("font-medium", (streakData?.current_streak || 0) >= 7 ? "text-success" : "text-muted-foreground")}>
+                          {streakData?.current_streak || 0}/7
+                        </span>
+                      </div>
+                      <ProgressBar value={Math.min(100, ((streakData?.current_streak || 0) / 7) * 100)} className="h-2" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>

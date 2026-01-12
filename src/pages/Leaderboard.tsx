@@ -9,14 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useRealtimeLeaderboard } from "@/hooks/useRealtimeLeaderboard";
 import { useStreakLeaderboard } from "@/hooks/useStreak";
-import { useCourseLeaderboard, useClassLeaderboard, useUserEnrolledCourse } from "@/hooks/useCourseLeaderboard";
+import { useCourseLeaderboard, useClassLeaderboard, useUserEnrolledClass } from "@/hooks/useCourseLeaderboard";
 import { useAuth } from "@/context/AuthContext";
 
 const Leaderboard = () => {
   const { user, isAdmin } = useAuth();
   const { leaderboard: globalLeaderboard, isLoading: globalLoading, isLive, userRank: globalUserRank, forceRefresh } = useRealtimeLeaderboard(50);
   const { data: streakLeaderboard } = useStreakLeaderboard(20);
-  const { data: enrollment, isLoading: enrollmentLoading } = useUserEnrolledCourse();
+  const { data: enrollment, isLoading: enrollmentLoading } = useUserEnrolledClass();
   
   // Get course/class specific leaderboard for learners
   const courseId = enrollment?.course_id;

@@ -274,33 +274,5 @@ export const useUpdateLessonDeadline = () => {
   });
 };
 
-export const useEnrollInCourse = () => {
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  return useMutation({
-    mutationFn: async ({ courseId, startDate }: { courseId: string; startDate?: string }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      
-      const { data, error } = await supabase
-        .from('enrollments')
-        .insert({
-          user_id: user.id,
-          course_id: courseId,
-          start_date: startDate || null
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-      toast.success('Enrolled successfully!');
-    },
-    onError: (error) => {
-      toast.error(`Failed to enroll: ${error.message}`);
-    }
-  });
-};
+// Note: useEnrollInCourse is deprecated - use useAddUserToClass from useCourseClasses.ts instead
+// Enrollments are now managed through classes, not directly through courses
