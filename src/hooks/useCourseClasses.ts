@@ -52,19 +52,36 @@ export const useAllCourseClasses = () => {
   return useQuery({
     queryKey: ['all-course-classes'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch classes
+      const { data: classesData, error: classesError } = await supabase
         .from('course_classes')
         .select('*, courses(id, code, name)')
         .order('start_date', { ascending: false });
 
-      if (error) throw error;
+      if (classesError) throw classesError;
+
+      // Fetch enrollment counts for all classes
+      const { data: enrollmentCounts, error: countError } = await supabase
+        .from('enrollments')
+        .select('class_id');
+
+      if (countError) throw countError;
+
+      // Count enrollments per class
+      const countByClass = new Map<string, number>();
+      enrollmentCounts?.forEach(e => {
+        if (e.class_id) {
+          countByClass.set(e.class_id, (countByClass.get(e.class_id) || 0) + 1);
+        }
+      });
       
-      return (data || []).map(c => ({
+      return (classesData || []).map(c => ({
         ...c,
         schedule_days: Array.isArray(c.schedule_days) 
           ? c.schedule_days 
-          : ['monday', 'wednesday', 'friday']
-      })) as CourseClass[];
+          : ['monday', 'wednesday', 'friday'],
+        learner_count: countByClass.get(c.id) || 0
+      })) as (CourseClass & { learner_count: number })[];
     }
   });
 };

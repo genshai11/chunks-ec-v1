@@ -454,11 +454,7 @@ const ClassCard: React.FC<{
                     )}
                     <Badge variant="secondary" className="text-xs gap-1">
                       <Users className="w-3 h-3" />
-                      {enrollmentsLoading ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <>{learnerCount}</>
-                      )}
+                      {(cls as any).learner_count ?? learnerCount}
                     </Badge>
                   </div>
                   <CardTitle className="text-lg mt-1">{cls.class_name}</CardTitle>
@@ -523,7 +519,7 @@ const ClassCard: React.FC<{
               <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground hover:text-foreground">
                 <span className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
-                  {learnerCount} Learners • {lessons?.length || 0} Lessons
+                  {((cls as any).learner_count ?? learnerCount)} Learners • {lessons?.length || 0} Lessons
                 </span>
                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </Button>
