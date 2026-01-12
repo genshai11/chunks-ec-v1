@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useCourses, useCreateCourse, useDeleteCourse } from '@/hooks/useCourses';
+import { useCourses, useCreateCourse, useDeleteCourse, useAllLessons } from '@/hooks/useCourses';
 import { useSeedERELCourse } from '@/hooks/useSeedData';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,9 +38,14 @@ import {
 
 const CourseManagement: React.FC = () => {
   const { data: courses, isLoading } = useCourses();
+  const { data: allLessons } = useAllLessons();
   const createCourse = useCreateCourse();
   const deleteCourse = useDeleteCourse();
   const seedEREL = useSeedERELCourse();
+  
+  // Check if EREL lessons already exist
+  const erelCourse = courses?.find(c => c.code === 'EREL');
+  const erelLessonsExist = erelCourse && allLessons?.some(l => l.course_id === erelCourse.id);
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newCourse, setNewCourse] = useState({
@@ -84,14 +89,14 @@ const CourseManagement: React.FC = () => {
             variant="outline" 
             className="gap-2"
             onClick={() => seedEREL.mutate()}
-            disabled={seedEREL.isPending || courses?.some(c => c.code === 'EREL')}
+            disabled={seedEREL.isPending || erelLessonsExist}
           >
             {seedEREL.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Download className="w-4 h-4" />
             )}
-            Import EREL
+            {erelLessonsExist ? 'EREL Imported' : 'Import EREL'}
           </Button>
           
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
