@@ -15,6 +15,10 @@ export interface PracticeHistory {
   audio_url: string | null;
   metrics: Record<string, number> | null;
   practiced_at: string;
+  lessons?: {
+    lesson_name: string;
+    categories: Record<string, any[]>;
+  };
 }
 
 export interface UserProgress {
@@ -50,7 +54,7 @@ export interface SpeechAnalysisResult {
   feedback: string[];
 }
 
-// Fetch user's practice history
+// Fetch user's practice history with lesson details
 export const usePracticeHistory = (lessonId?: string) => {
   const { user } = useAuth();
 
@@ -61,7 +65,13 @@ export const usePracticeHistory = (lessonId?: string) => {
 
       let query = supabase
         .from('practice_history')
-        .select('*')
+        .select(`
+          *,
+          lessons (
+            lesson_name,
+            categories
+          )
+        `)
         .eq('user_id', user.id)
         .order('practiced_at', { ascending: false });
 
@@ -69,7 +79,7 @@ export const usePracticeHistory = (lessonId?: string) => {
         query = query.eq('lesson_id', lessonId);
       }
 
-      const { data, error } = await query.limit(100);
+      const { data, error } = await query.limit(200);
       if (error) throw error;
       return data as PracticeHistory[];
     },

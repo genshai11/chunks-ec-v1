@@ -14,6 +14,26 @@ export interface CoinConfig {
   deadline_penalty: number;
   lessons_required_for_withdraw: number;
   min_avg_score_for_withdraw: number;
+  // Lesson completion milestones
+  milestone_25_bonus: number;
+  milestone_50_bonus: number;
+  milestone_75_bonus: number;
+  milestone_100_bonus: number;
+  // Streak bonuses
+  streak_bonus_threshold: number;
+  streak_bonus_min_score: number;
+  streak_bonus_coins: number;
+  // First practice bonus
+  first_practice_bonus: number;
+  // Deadline rewards (dynamic based on completion %)
+  deadline_early_bonus_max: number;
+  deadline_early_bonus_days: number;
+  deadline_on_time_bonus: number;
+  deadline_penalty_max: number;
+  deadline_penalty_grace_days: number;
+  deadline_penalty_scale_days: number;
+  min_completion_for_bonus: number;
+  penalty_completion_threshold: number;
 }
 
 export interface CoinTransaction {

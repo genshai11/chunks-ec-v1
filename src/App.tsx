@@ -13,6 +13,7 @@ import Profile from "./pages/Profile";
 import Courses from "./pages/Courses";
 import Progress from "./pages/Progress";
 import Practice from "./pages/Practice";
+import Vocabulary from "./pages/Vocabulary";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,7 +52,15 @@ const App = () => (
               } 
             />
             <Route 
-              path="/leaderboard" 
+              path="/vocabulary" 
+              element={
+                <ProtectedRoute>
+                  <Vocabulary />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/leaderboard"
               element={
                 <ProtectedRoute>
                   <Leaderboard />
