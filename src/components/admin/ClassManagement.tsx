@@ -519,7 +519,7 @@ const ClassCard: React.FC<{
               <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground hover:text-foreground">
                 <span className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
-                  {learnerCount} Learners • {lessons?.length || 0} Lessons
+                  {((cls as any).learner_count ?? learnerCount)} Learners • {lessons?.length || 0} Lessons
                 </span>
                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </Button>
