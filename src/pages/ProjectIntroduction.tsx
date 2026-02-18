@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+﻿import { motion } from "framer-motion";
 import {
     Accordion,
     AccordionContent,
@@ -65,38 +65,38 @@ const ProjectIntroduction = () => {
                                         <div className="space-y-3">
                                             <h4 className="font-semibold text-foreground">Frontend</h4>
                                             <ul className="text-sm text-muted-foreground space-y-1">
-                                                <li>• <strong>React 18.3</strong> - UI framework</li>
-                                                <li>• <strong>TypeScript 5.8</strong> - Type safety</li>
-                                                <li>• <strong>Vite 7.3</strong> - Build tool with SWC</li>
-                                                <li>• <strong>Tailwind CSS 3.4</strong> - Styling</li>
-                                                <li>• <strong>Framer Motion 12</strong> - Animations</li>
+                                                <li>â€¢ <strong>React 18.3</strong> - UI framework</li>
+                                                <li>â€¢ <strong>TypeScript 5.8</strong> - Type safety</li>
+                                                <li>â€¢ <strong>Vite 7.3</strong> - Build tool with SWC</li>
+                                                <li>â€¢ <strong>Tailwind CSS 3.4</strong> - Styling</li>
+                                                <li>â€¢ <strong>Framer Motion 12</strong> - Animations</li>
                                             </ul>
                                         </div>
                                         <div className="space-y-3">
                                             <h4 className="font-semibold text-foreground">UI Components</h4>
                                             <ul className="text-sm text-muted-foreground space-y-1">
-                                                <li>• <strong>Radix UI</strong> - Accessible primitives</li>
-                                                <li>• <strong>shadcn/ui</strong> - Component library</li>
-                                                <li>• <strong>Lucide React</strong> - Icon system</li>
-                                                <li>• <strong>Recharts 2.15</strong> - Data visualization</li>
+                                                <li>â€¢ <strong>Radix UI</strong> - Accessible primitives</li>
+                                                <li>â€¢ <strong>shadcn/ui</strong> - Component library</li>
+                                                <li>â€¢ <strong>Lucide React</strong> - Icon system</li>
+                                                <li>â€¢ <strong>Recharts 2.15</strong> - Data visualization</li>
                                             </ul>
                                         </div>
                                         <div className="space-y-3">
                                             <h4 className="font-semibold text-foreground">State & Data</h4>
                                             <ul className="text-sm text-muted-foreground space-y-1">
-                                                <li>• <strong>TanStack Query 5</strong> - Server state</li>
-                                                <li>• <strong>React Hook Form 7</strong> - Form handling</li>
-                                                <li>• <strong>Zod 3.25</strong> - Schema validation</li>
-                                                <li>• <strong>date-fns 3.6</strong> - Date utilities</li>
+                                                <li>â€¢ <strong>TanStack Query 5</strong> - Server state</li>
+                                                <li>â€¢ <strong>React Hook Form 7</strong> - Form handling</li>
+                                                <li>â€¢ <strong>Zod 3.25</strong> - Schema validation</li>
+                                                <li>â€¢ <strong>date-fns 3.6</strong> - Date utilities</li>
                                             </ul>
                                         </div>
                                         <div className="space-y-3">
                                             <h4 className="font-semibold text-foreground">Backend</h4>
                                             <ul className="text-sm text-muted-foreground space-y-1">
-                                                <li>• <strong>Supabase</strong> - PostgreSQL database</li>
-                                                <li>• <strong>Row Level Security</strong> - Data isolation</li>
-                                                <li>• <strong>Real-time subscriptions</strong></li>
-                                                <li>• <strong>Edge Functions</strong> - Serverless API</li>
+                                                <li>â€¢ <strong>Supabase</strong> - PostgreSQL database</li>
+                                                <li>â€¢ <strong>Row Level Security</strong> - Data isolation</li>
+                                                <li>â€¢ <strong>Real-time subscriptions</strong></li>
+                                                <li>â€¢ <strong>Edge Functions</strong> - Serverless API</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -143,12 +143,12 @@ const ProjectIntroduction = () => {
                                                 <strong>3 Detection Methods:</strong>
                                             </p>
                                             <ul className="text-xs text-muted-foreground space-y-1 ml-4">
-                                                <li>• <strong>Energy Peaks:</strong> Volume-compensated peak detection (default)</li>
-                                                <li>• <strong>Zero-Crossing Rate:</strong> Frequency-based syllable counting</li>
-                                                <li>• <strong>Deepgram STT:</strong> AI-powered word count via speech-to-text</li>
+                                                <li>â€¢ <strong>Energy Peaks:</strong> Volume-compensated peak detection (default)</li>
+                                                <li>â€¢ <strong>Zero-Crossing Rate:</strong> Frequency-based syllable counting</li>
+                                                <li>â€¢ <strong>Deepgram STT:</strong> AI-powered word count via speech-to-text</li>
                                             </ul>
                                             <p className="text-xs text-muted-foreground mt-2">
-                                                Output: Words per minute (WPM) • Target: 80-200 WPM
+                                                Output: Words per minute (WPM) â€¢ Target: 80-200 WPM
                                             </p>
                                         </div>
 
@@ -186,7 +186,7 @@ const ProjectIntroduction = () => {
                                         <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-4 rounded-lg border border-primary/20">
                                             <h5 className="font-semibold text-foreground mb-2">Overall Score Formula</h5>
                                             <code className="text-xs bg-background/80 px-3 py-2 rounded block font-mono">
-                                                score = (volume × 0.20) + (speechRate × 0.25) + (acceleration × 0.15) + (responseTime × 0.15) + (pauses × 0.15)
+                                                score = (volume Ã— 0.20) + (speechRate Ã— 0.25) + (acceleration Ã— 0.15) + (responseTime Ã— 0.15) + (pauses Ã— 0.15)
                                             </code>
                                         </div>
                                     </div>
@@ -268,7 +268,7 @@ const ProjectIntroduction = () => {
 
                                     <div className="space-y-4">
                                         <div>
-                                            <h4 className="font-medium text-foreground mb-2">💰 Base Earnings (Score-Based)</h4>
+                                            <h4 className="font-medium text-foreground mb-2">ðŸ’° Base Earnings (Score-Based)</h4>
                                             <div className="bg-background/50 p-3 rounded-lg border">
                                                 <p className="text-sm text-muted-foreground mb-2">
                                                     Coins earned per practice are calculated from the audio analysis score:
@@ -277,22 +277,22 @@ const ProjectIntroduction = () => {
                                                     coins = (score / 100) * 15
                                                 </code>
                                                 <p className="text-xs text-muted-foreground mt-2">
-                                                    Range: 0-15 coins • Exponential scaling rewards higher accuracy
+                                                    Range: 0-15 coins â€¢ Exponential scaling rewards higher accuracy
                                                 </p>
                                             </div>
                                         </div>
 
                                         <div>
-                                            <h4 className="font-medium text-foreground mb-2">🎯 Milestone Bonuses</h4>
+                                            <h4 className="font-medium text-foreground mb-2">ðŸŽ¯ Milestone Bonuses</h4>
                                             <div className="bg-background/50 p-3 rounded-lg border">
                                                 <p className="text-sm text-muted-foreground mb-2">
                                                     <strong>Algorithm:</strong> Triggered when lesson completion crosses thresholds
                                                 </p>
                                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                                    <div>• 25% complete: <strong>+10 coins</strong></div>
-                                                    <div>• 50% complete: <strong>+25 coins</strong></div>
-                                                    <div>• 75% complete: <strong>+50 coins</strong></div>
-                                                    <div>• 100% complete: <strong>+100 coins</strong></div>
+                                                    <div>â€¢ 25% complete: <strong>+10 coins</strong></div>
+                                                    <div>â€¢ 50% complete: <strong>+25 coins</strong></div>
+                                                    <div>â€¢ 75% complete: <strong>+50 coins</strong></div>
+                                                    <div>â€¢ 100% complete: <strong>+100 coins</strong></div>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground mt-2">
                                                     Total possible: 185 coins per lesson
@@ -301,10 +301,10 @@ const ProjectIntroduction = () => {
                                         </div>
 
                                         <div>
-                                            <h4 className="font-medium text-foreground mb-2">🔥 Streak Bonuses</h4>
+                                            <h4 className="font-medium text-foreground mb-2">ðŸ”¥ Streak Bonuses</h4>
                                             <div className="bg-background/50 p-3 rounded-lg border">
                                                 <p className="text-sm text-muted-foreground mb-2">
-                                                    <strong>Algorithm:</strong> Count consecutive scores ≥80 from recent practices
+                                                    <strong>Algorithm:</strong> Count consecutive scores â‰¥80 from recent practices
                                                 </p>
                                                 <code className="text-xs bg-muted px-2 py-1 rounded block mb-2">
                                                     bonus = (consecutive / threshold) * coinsPerStreak
@@ -316,7 +316,7 @@ const ProjectIntroduction = () => {
                                         </div>
 
                                         <div>
-                                            <h4 className="font-medium text-foreground mb-2">⚡ Deadline Rewards & Penalties</h4>
+                                            <h4 className="font-medium text-foreground mb-2">âš¡ Deadline Rewards & Penalties</h4>
                                             <div className="bg-background/50 p-3 rounded-lg border space-y-2">
                                                 <div>
                                                     <p className="text-sm font-medium text-foreground">Early Completion Bonus:</p>
@@ -336,7 +336,7 @@ const ProjectIntroduction = () => {
                                         </div>
 
                                         <div>
-                                            <h4 className="font-medium text-foreground mb-2">🎁 First Practice Bonus</h4>
+                                            <h4 className="font-medium text-foreground mb-2">ðŸŽ First Practice Bonus</h4>
                                             <div className="bg-background/50 p-3 rounded-lg border">
                                                 <p className="text-sm text-muted-foreground">
                                                     +2 coins for first attempt on any new item (encourages exploration)
@@ -365,38 +365,38 @@ const ProjectIntroduction = () => {
                                         <div className="bg-background/50 p-3 rounded-lg border">
                                             <h5 className="text-sm font-semibold text-foreground mb-1">Core Tables</h5>
                                             <ul className="text-xs text-muted-foreground space-y-1">
-                                                <li>• <code className="bg-muted px-1 rounded">users</code> - Authentication & profiles</li>
-                                                <li>• <code className="bg-muted px-1 rounded">courses</code> - Course definitions</li>
-                                                <li>• <code className="bg-muted px-1 rounded">course_classes</code> - Class instances with schedules</li>
-                                                <li>• <code className="bg-muted px-1 rounded">lessons</code> - Lesson content (JSONB categories)</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">users</code> - Authentication & profiles</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">courses</code> - Course definitions</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">course_classes</code> - Class instances with schedules</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">lessons</code> - Lesson content (JSONB categories)</li>
                                             </ul>
                                         </div>
 
                                         <div className="bg-background/50 p-3 rounded-lg border">
                                             <h5 className="text-sm font-semibold text-foreground mb-1">Practice & Progress</h5>
                                             <ul className="text-xs text-muted-foreground space-y-1">
-                                                <li>• <code className="bg-muted px-1 rounded">practice_history</code> - All attempts with scores & metrics</li>
-                                                <li>• <code className="bg-muted px-1 rounded">user_progress</code> - Aggregated progress per item</li>
-                                                <li>• <code className="bg-muted px-1 rounded">user_wallets</code> - Coin balances</li>
-                                                <li>• <code className="bg-muted px-1 rounded">coin_transactions</code> - Transaction log</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">practice_history</code> - All attempts with scores & metrics</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">user_progress</code> - Aggregated progress per item</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">user_wallets</code> - Coin balances</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">coin_transactions</code> - Transaction log</li>
                                             </ul>
                                         </div>
 
                                         <div className="bg-background/50 p-3 rounded-lg border">
                                             <h5 className="text-sm font-semibold text-foreground mb-1">Configuration</h5>
                                             <ul className="text-xs text-muted-foreground space-y-1">
-                                                <li>• <code className="bg-muted px-1 rounded">coin_config</code> - Economy parameters (16 settings)</li>
-                                                <li>• <code className="bg-muted px-1 rounded">scoring_config</code> - Audio analysis thresholds</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">coin_config</code> - Economy parameters (16 settings)</li>
+                                                <li>â€¢ <code className="bg-muted px-1 rounded">scoring_config</code> - Audio analysis thresholds</li>
                                             </ul>
                                         </div>
 
                                         <div className="bg-gradient-to-r from-cyan-500/5 to-cyan-500/10 p-3 rounded-lg border border-cyan-500/20">
                                             <h5 className="text-sm font-semibold text-foreground mb-2">Key Features</h5>
                                             <ul className="text-xs text-muted-foreground space-y-1">
-                                                <li>• <strong>Row Level Security:</strong> User data isolation via RLS policies</li>
-                                                <li>• <strong>Real-time:</strong> Live updates via Supabase subscriptions</li>
-                                                <li>• <strong>JSONB:</strong> Flexible lesson content storage</li>
-                                                <li>• <strong>Indexes:</strong> Optimized queries on user_id, lesson_id</li>
+                                                <li>â€¢ <strong>Row Level Security:</strong> User data isolation via RLS policies</li>
+                                                <li>â€¢ <strong>Real-time:</strong> Live updates via Supabase subscriptions</li>
+                                                <li>â€¢ <strong>JSONB:</strong> Flexible lesson content storage</li>
+                                                <li>â€¢ <strong>Indexes:</strong> Optimized queries on user_id, lesson_id</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -487,7 +487,7 @@ const ProjectIntroduction = () => {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                                                    <span className="text-muted-foreground">Due Soon (≤3 days left)</span>
+                                                    <span className="text-muted-foreground">Due Soon (â‰¤3 days left)</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="w-2 h-2 rounded-full bg-orange-500"></span>
@@ -505,7 +505,6 @@ const ProjectIntroduction = () => {
 
                         </Accordion>
                     </motion.div>
-                </div>
         </LearnerLayout>
     );
 };

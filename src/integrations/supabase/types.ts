@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -11,6 +11,31 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -358,6 +383,180 @@ export type Database = {
             columns: ["lesson_id"]
             isOneToOne: false
             referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_scores: {
+        Row: {
+          created_at: string
+          id: string
+          metrics: Json | null
+          overall_score: number | null
+          percent_c: number | null
+          percent_i: number | null
+          percent_r: number | null
+          take_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          overall_score?: number | null
+          percent_c?: number | null
+          percent_i?: number | null
+          percent_r?: number | null
+          take_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          overall_score?: number | null
+          percent_c?: number | null
+          percent_i?: number | null
+          percent_r?: number | null
+          take_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_scores_take_id_fkey"
+            columns: ["take_id"]
+            isOneToOne: false
+            referencedRelation: "practice_takes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_sessions: {
+        Row: {
+          category: string | null
+          created_at: string
+          ended_at: string | null
+          id: string
+          lesson_id: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          lesson_id: string
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          lesson_id?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_sessions_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_takes: {
+        Row: {
+          audio_mime_type: string | null
+          audio_path: string | null
+          category: string | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          item_index: number | null
+          lesson_id: string | null
+          session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          audio_mime_type?: string | null
+          audio_path?: string | null
+          category?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          item_index?: number | null
+          lesson_id?: string | null
+          session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          audio_mime_type?: string | null
+          audio_path?: string | null
+          category?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          item_index?: number | null
+          lesson_id?: string | null
+          session_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_takes_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_takes_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "practice_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_transcripts: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          id: string
+          provider: string
+          raw: Json | null
+          take_id: string
+          transcript: string
+          words: Json | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          provider?: string
+          raw?: Json | null
+          take_id: string
+          transcript?: string
+          words?: Json | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          provider?: string
+          raw?: Json | null
+          take_id?: string
+          transcript?: string
+          words?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_transcripts_take_id_fkey"
+            columns: ["take_id"]
+            isOneToOne: false
+            referencedRelation: "practice_takes"
             referencedColumns: ["id"]
           },
         ]
@@ -714,6 +913,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "teacher", "user"],

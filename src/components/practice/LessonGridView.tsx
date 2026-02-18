@@ -21,10 +21,17 @@ export const LessonGridView = ({
   getLessonProgress,
   onSelectLesson 
 }: LessonGridViewProps) => {
+  const getStatus = (completion = 0) => {
+    if (completion >= 100) return { label: "Completed", className: "bg-success/15 text-success border-success/30" };
+    if (completion > 0) return { label: "In Progress", className: "bg-primary/10 text-primary border-primary/30" };
+    return { label: "Not Started", className: "bg-muted text-muted-foreground border-border/50" };
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {lessons.map((lesson, index) => {
         const progress = getLessonProgress(lesson.id);
+        const status = getStatus(progress?.completionPercent || 0);
         const deadline = lessonDeadlines?.find(d => d.lessonId === lesson.id);
         const deadlineStatus = deadline ? getDeadlineStatus(deadline) : null;
         const isComplete = progress?.completionPercent === 100;
@@ -79,9 +86,14 @@ export const LessonGridView = ({
                 </h3>
 
                 {/* Categories count */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground mb-3">
+                  <Badge variant="outline" className={status.className}>
+                    {status.label}
+                  </Badge>
+                  <div className="flex items-center gap-2">
                   <BookOpen className="w-4 h-4" />
                   <span>{Object.keys(lesson.categories || {}).length} categories</span>
+                  </div>
                 </div>
 
                 {/* Progress */}

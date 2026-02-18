@@ -1,30 +1,29 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, 
   Volume2, 
   Mic, 
   Square, 
-  RotateCcw, 
   ChevronLeft, 
   ChevronRight,
   Eye,
   EyeOff,
   Loader2,
-  Flame,
-  Play
+  Flame
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { CoinBadge } from "@/components/ui/CoinBadge";
-import { AudioWaveform } from "@/components/ui/AudioWaveform";
-import { ScoreDisplay } from "@/components/practice/ScoreDisplay";
+import { ResultsView } from "@/components/practice/ResultsView";
+import { PracticeCameraFeed } from "@/components/practice/PracticeCameraFeed";
+import { RecordingWaveform } from "@/components/practice/RecordingWaveform";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useCoinConfig } from "@/hooks/useCoinWallet";
 import { useWallet } from "@/hooks/useUserData";
-import { usePracticeIngest } from "@/hooks/usePractice";
+import { usePracticeIngest, useSavePractice } from "@/hooks/usePractice";
 import { analyzeAudioAsync, AnalysisResult } from "@/lib/audioAnalysis";
 import { toast } from "sonner";
 
@@ -58,6 +57,7 @@ export const PracticeModal = ({
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [coinChange, setCoinChange] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [hideNavigation, setHideNavigation] = useState(false);
   const [sessionStats, setSessionStats] = useState({ 
     completed: 0, 
     totalScore: 0, 
@@ -69,6 +69,7 @@ export const PracticeModal = ({
   const { data: coinConfig } = useCoinConfig();
   const { data: wallet, refetch: refetchWallet } = useWallet();
   const practiceIngest = usePracticeIngest();
+  const savePractice = useSavePractice();
 
   const currentItem = items[currentIndex];
   const progress = ((currentIndex + 1) / items.length) * 100;
@@ -81,6 +82,7 @@ export const PracticeModal = ({
       setShowEnglish(false);
       setAnalysisResult(null);
       setCoinChange(null);
+      setHideNavigation(false);
       setSessionStats({ completed: 0, totalScore: 0, coinsEarned: 0 });
       recorder.resetRecording();
     }
@@ -114,25 +116,25 @@ export const PracticeModal = ({
     setIsAnalyzing(true);
     
     try {
-      console.log('⏹️ Stopping recording...');
+      console.log("Stopping recording...");
       
       const audioData = await recorder.stopRecording();
       
-      console.log('✅ Recording stopped, got audio data:', {
+      console.log("Recording stopped, got audio data:", {
         bufferLength: audioData.audioBuffer.length,
         sampleRate: audioData.sampleRate,
         hasBase64: !!audioData.audioBase64
       });
       
       // Use local audio analysis with Supabase scoring config
-      console.log('🔄 Starting audio analysis...');
+      console.log("Starting audio analysis...");
       const result = await analyzeAudioAsync(
         audioData.audioBuffer,
         audioData.sampleRate,
         { audioBlob: audioData.audioBlob ?? undefined, audioBase64: audioData.audioBase64 ?? undefined }
       );
       
-      console.log('✅ Analysis complete:', result);
+      console.log("Analysis complete:", result);
 
       setAnalysisResult(result);
 
@@ -164,22 +166,54 @@ export const PracticeModal = ({
       let coins = 0;
       
       if (coinConfig) {
-        if (score >= (coinConfig.reward_score_threshold || 70)) {
+        const rewardThreshold = coinConfig.reward_score_threshold ?? 70;
+        const penaltyThreshold = coinConfig.penalty_score_threshold ?? 50;
+        const rewardMin = coinConfig.reward_min ?? 0;
+        const rewardMax = coinConfig.reward_max ?? rewardMin;
+        const penaltyMin = coinConfig.penalty_min ?? 0;
+        const penaltyMax = coinConfig.penalty_max ?? penaltyMin;
+
+        if (score >= rewardThreshold) {
           coins = Math.round(
-            coinConfig.reward_min + 
-            ((score - 70) / 30) * (coinConfig.reward_max - coinConfig.reward_min)
+            rewardMin + 
+            ((score - rewardThreshold) / Math.max(1, 100 - rewardThreshold)) * (rewardMax - rewardMin)
           );
-        } else if (score < (coinConfig.penalty_score_threshold || 50)) {
+        } else if (score < penaltyThreshold) {
           coins = -Math.round(
-            coinConfig.penalty_min + 
-            ((50 - score) / 50) * (coinConfig.penalty_max - coinConfig.penalty_min)
+            penaltyMin + 
+            ((penaltyThreshold - score) / Math.max(1, penaltyThreshold)) * (penaltyMax - penaltyMin)
           );
         }
       } else {
         coins = score >= 70 ? Math.floor(score / 10) : (score < 50 ? -5 : 0);
       }
+      coins = Number.isFinite(coins) ? coins : 0;
 
       setCoinChange(coins);
+
+      // Save practice history/progress for dashboard + progress pages
+      if (lessonId && category) {
+        try {
+          await savePractice.mutateAsync({
+            lessonId,
+            category,
+            itemIndex: currentIndex,
+            score: Number.isFinite(score) ? score : 0,
+            coinsEarned: Number.isFinite(coins) ? coins : 0,
+            metrics: {
+              volume: result.volume.averageDb,
+              speechRate: result.speechRate.wordsPerMinute,
+              pauseCount: result.pauseManagement.pauseCount,
+              longestPause: Math.round(result.pauseManagement.maxPauseDuration * 1000),
+              latency: result.responseTime.responseTimeMs,
+              endIntensity: result.acceleration.score,
+            },
+          });
+        } catch (saveError) {
+          console.warn("practice save failed:", saveError);
+          toast.warning("Result analyzed, but saving failed. Please retry once.");
+        }
+      }
 
       // Update session stats
       setSessionStats(prev => ({
@@ -220,17 +254,18 @@ export const PracticeModal = ({
         ? Math.round(sessionStats.totalScore / sessionStats.completed) 
         : 0;
       
-      const coinText = sessionStats.coinsEarned >= 0 
-        ? `+${sessionStats.coinsEarned} 🪙` 
-        : `${sessionStats.coinsEarned} 🪙`;
+      const safeCoins = Number.isFinite(sessionStats.coinsEarned) ? sessionStats.coinsEarned : 0;
+      const coinText = safeCoins >= 0 
+        ? `+${safeCoins} coins` 
+        : `${safeCoins} coins`;
       
       toast.success(
         <div className="flex flex-col gap-1">
-          <span className="font-semibold">Practice Complete! 🎉</span>
+          <span className="font-semibold">Practice Complete!</span>
           <div className="flex items-center gap-4 text-sm">
-            <span>📊 Avg: <strong>{avgScore}%</strong></span>
-            <span>✅ Items: <strong>{sessionStats.completed}</strong></span>
-            <span className={sessionStats.coinsEarned >= 0 ? "text-green-600" : "text-red-500"}>
+            <span>Avg: <strong>{avgScore}%</strong></span>
+            <span>Items: <strong>{sessionStats.completed}</strong></span>
+            <span className={safeCoins >= 0 ? "text-green-600" : "text-red-500"}>
               {coinText}
             </span>
           </div>
@@ -257,17 +292,36 @@ export const PracticeModal = ({
     recorder.resetRecording();
   };
 
+  const canInteract = useMemo(
+    () => isOpen && !isAnalyzing && !analysisResult,
+    [isOpen, isAnalyzing, analysisResult]
+  );
+
+  const handleCameraTap = async () => {
+    if (!canInteract) return;
+    if (recorder.isRecording) {
+      await handleStopRecording();
+    } else {
+      await handleStartRecording();
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      void handleCameraTap();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, canInteract, recorder.isRecording, isAnalyzing, analysisResult]);
+
   if (!isOpen) return null;
 
   const isLastItem = currentIndex === items.length - 1;
-  const scoreColor = analysisResult 
-    ? analysisResult.overallScore >= 80 
-      ? "text-success" 
-      : analysisResult.overallScore >= 60 
-        ? "text-warning" 
-        : "text-destructive"
-    : "";
-
   return (
     <AnimatePresence>
       <motion.div
@@ -280,18 +334,24 @@ export const PracticeModal = ({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="w-full max-w-2xl bg-card rounded-3xl border border-border/50 overflow-hidden shadow-2xl"
+          className="w-full max-w-[920px] bg-card rounded-3xl border border-border/50 overflow-hidden shadow-2xl max-h-[92vh] flex flex-col"
         >
           {/* Header */}
-          <div className="p-6 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent">
+          <div className="p-4 md:p-6 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent shrink-0">
             <div>
-              <h2 className="font-display font-semibold text-lg">{lessonName}</h2>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <h2 className="font-display font-semibold text-base md:text-lg">{lessonName}</h2>
+              <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-muted-foreground">
                 <Badge variant="secondary">{category}</Badge>
                 {sessionStats.completed > 0 && (
                   <span className="flex items-center gap-1">
                     <Flame className="w-3 h-3" />
                     Avg: {Math.round(sessionStats.totalScore / sessionStats.completed)}%
+                  </span>
+                )}
+                {isAnalyzing && (
+                  <span className="inline-flex items-center gap-1 text-primary">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Audio analyzing...
                   </span>
                 )}
               </div>
@@ -308,7 +368,7 @@ export const PracticeModal = ({
           </div>
 
           {/* Progress */}
-          <div className="px-6 py-3 bg-secondary/30">
+          <div className="px-4 md:px-6 py-3 bg-secondary/30 shrink-0">
             <div className="flex items-center justify-between text-sm mb-2">
               <span className="text-muted-foreground">
                 Item {currentIndex + 1} of {items.length}
@@ -319,21 +379,25 @@ export const PracticeModal = ({
           </div>
 
           {/* Content */}
-          <div className="p-8">
+          <div className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-8">
             {/* Vietnamese Text */}
-            <div className="text-center mb-8">
-              <p className="text-sm text-muted-foreground mb-2">Say this in English:</p>
-              <motion.p 
-                key={currentIndex}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-2xl font-display font-semibold text-foreground"
-              >
-                {currentItem.vietnamese}
-              </motion.p>
-            </div>
+            {!recorder.isRecording && (
+              <div className="text-center mb-8">
+                <p className="text-sm text-muted-foreground mb-2">Say this in English:</p>
+                <motion.p 
+                  key={currentIndex}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xl md:text-2xl font-display font-semibold text-foreground"
+                >
+                  {currentItem.vietnamese}
+                </motion.p>
+              </div>
+            )}
 
             {/* English Reference */}
+            {!recorder.isRecording && (
             <div className="mb-8">
               <Button
                 variant="ghost"
@@ -357,6 +421,17 @@ export const PracticeModal = ({
                 )}
               </AnimatePresence>
             </div>
+            )}
+
+            {/* Camera Practice UI (visual only, no face metrics scoring) */}
+            <div className="mb-6">
+              <PracticeCameraFeed
+                isRecording={recorder.isRecording}
+                audioLevel={recorder.getAudioLevel()}
+                onTap={() => void handleCameraTap()}
+                hintText={recorder.isRecording ? "Tap or press Space to stop" : "Tap or press Space to record"}
+              />
+            </div>
 
             {/* Audio Waveform while recording */}
             {recorder.isRecording && (
@@ -368,14 +443,10 @@ export const PracticeModal = ({
                 <div className="flex items-center justify-center gap-2 mb-3">
                   <div className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
                   <span className="text-sm font-medium text-destructive">
-                    Recording... {Math.round(recorder.recordingTime / 1000)}s
+                    Recording... {Math.round(recorder.recordingTime)}s
                   </span>
                 </div>
-                <AudioWaveform 
-                  isRecording={recorder.isRecording} 
-                  audioLevel={recorder.getAudioLevel()} 
-                  className="mx-auto"
-                />
+                <RecordingWaveform getAudioLevel={recorder.getAudioLevel} isActive={recorder.isRecording} />
               </motion.div>
             )}
 
@@ -398,52 +469,13 @@ export const PracticeModal = ({
                 animate={{ scale: 1, opacity: 1 }}
                 className="mb-8"
               >
-                <ScoreDisplay 
-                  analysisResult={analysisResult} 
-                  coinChange={coinChange}
-                />
-
-                {/* Your Recording - Playback Button */}
-                {recorder.audioUrl && (
-                  <div className="flex justify-center mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={recorder.isPlaying ? recorder.stopPlayback : recorder.playRecording}
-                      className="gap-2"
-                    >
-                      {recorder.isPlaying ? (
-                        <>
-                          <Square className="w-4 h-4" />
-                          Stop Playback
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4" />
-                          Listen to Your Recording
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-
-                {/* Feedback */}
-                {analysisResult.feedback && analysisResult.feedback.length > 0 && (
-                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-sm mt-6">
-                    {analysisResult.feedback.map((fb, i) => (
-                      <p key={i} className="text-muted-foreground flex items-start gap-2">
-                        <span className="text-primary mt-0.5">💡</span>
-                        <span>{fb}</span>
-                      </p>
-                    ))}
-                  </div>
-                )}
+                <ResultsView result={analysisResult} coinChange={coinChange} onRetry={handleRetry} />
               </motion.div>
             )}
 
             {/* Action Buttons */}
             {!isAnalyzing && (
-              <div className="flex items-center justify-center gap-4">
+              <div className="flex flex-wrap items-center justify-center gap-4">
                 <Button
                   variant="outline"
                   size="lg"
@@ -478,24 +510,14 @@ export const PracticeModal = ({
                     )}
                   </Button>
                 </motion.div>
-
-                {analysisResult && (
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={handleRetry}
-                    className="gap-2"
-                  >
-                    <RotateCcw size={20} />
-                    Retry
-                  </Button>
-                )}
               </div>
             )}
           </div>
+          </div>
 
           {/* Footer Navigation */}
-          <div className="p-6 border-t border-border/50 flex items-center justify-between bg-secondary/20">
+          {!hideNavigation && (
+          <div className="p-4 md:p-6 border-t border-border/50 flex items-center justify-between bg-secondary/20 shrink-0">
             <Button
               variant="ghost"
               onClick={handlePrev}
@@ -525,8 +547,22 @@ export const PracticeModal = ({
               <ChevronRight size={20} className="ml-2" />
             </Button>
           </div>
+          )}
+          <div className="px-4 pb-4 md:px-6 md:pb-6 bg-secondary/20 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHideNavigation((v) => !v)}
+              className="text-xs text-muted-foreground"
+            >
+              {hideNavigation ? "Show navigation" : "Hide navigation"}
+            </Button>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
   );
 };
+
+
+

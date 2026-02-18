@@ -23,6 +23,7 @@ import { useWallet } from "@/hooks/useUserData";
 import { useStreak } from "@/hooks/useStreak";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { AccentThemePicker } from "@/components/ui/AccentThemePicker";
 import logo from "@/assets/logo.png";
 
 const menuItems = [
@@ -45,6 +46,10 @@ export const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isNavCollapsed, setIsNavCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("sidebar-nav-collapsed") === "1";
+  });
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -60,6 +65,16 @@ export const Sidebar = () => {
     return () => window.removeEventListener('keydown', handleEscape);
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("sidebar-nav-collapsed", isNavCollapsed ? "1" : "0");
+      document.documentElement.style.setProperty(
+        "--learner-sidebar-width",
+        isNavCollapsed ? "5rem" : "16rem"
+      );
+    }
+  }, [isNavCollapsed]);
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
@@ -74,8 +89,9 @@ export const Sidebar = () => {
   const isStreakActive = streak?.last_practice_date === new Date().toISOString().split('T')[0];
 
   const BrandLockup = ({ compact = false }: { compact?: boolean }) => (
-    <div className="flex items-center gap-3">
+    <div className={cn("flex items-center", compact ? "justify-center" : "gap-3")}>
       <img src={logo} alt="CHUNKS" className={cn(compact ? "h-8 w-auto" : "h-10 w-auto")} />
+      {!compact && (
       <div className="leading-tight">
         <p className={cn(
           "font-black tracking-tight text-foreground",
@@ -90,34 +106,50 @@ export const Sidebar = () => {
           Speaking Lab
         </p>
       </div>
+      )}
     </div>
   );
 
-  const SidebarContent = () => (
+  const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => {
+    const compactNav = !mobile && isNavCollapsed;
+
+    return (
     <>
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
-        <Link to="/" onClick={() => setIsMobileOpen(false)}>
+        <div className="flex items-center justify-between gap-2">
+          <Link to="/" onClick={() => setIsMobileOpen(false)}>
           <motion.div
             className="flex items-center"
             whileHover={{ scale: 1.02 }}
           >
-            <BrandLockup />
+            <BrandLockup compact={compactNav} />
           </motion.div>
-        </Link>
+          </Link>
+
+          {!mobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsNavCollapsed((v) => !v)}
+              className="text-muted-foreground hover:text-foreground"
+              title={compactNav ? "Expand navigation" : "Collapse navigation"}
+            >
+              {compactNav ? <ChevronRight size={18} /> : <X size={18} className="rotate-45" />}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Coin Balance & Streak */}
-      <div className="p-4 mx-4 mt-4 rounded-xl glass-card space-y-3">
-        <div>
-          <p className="text-xs text-muted-foreground mb-2">Your Balance</p>
-          <CoinBadge amount={wallet?.balance || 0} size="lg" />
-        </div>
-
-        <div className="pt-3 border-t border-border/50">
-          <div className="flex items-center gap-2">
+      {compactNav ? (
+        <div className="p-3 mx-2 mt-3 rounded-xl border border-border/60 bg-background/60 space-y-3">
+          <div className="flex justify-center">
+            <CoinBadge amount={wallet?.balance || 0} size="sm" />
+          </div>
+          <div className="flex items-center justify-center gap-1 text-xs">
             <Flame
-              size={18}
+              size={14}
               className={cn(
                 isStreakActive ? "text-orange-400 animate-pulse" : "text-muted-foreground"
               )}
@@ -128,12 +160,36 @@ export const Sidebar = () => {
             )}>
               {currentStreak}
             </span>
-            <span className="text-xs text-muted-foreground">
-              day{currentStreak !== 1 ? 's' : ''} streak
-            </span>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-4 mx-4 mt-4 rounded-xl glass-card space-y-3">
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">Your Balance</p>
+            <CoinBadge amount={wallet?.balance || 0} size="lg" />
+          </div>
+
+          <div className="pt-3 border-t border-border/50">
+            <div className="flex items-center gap-2">
+              <Flame
+                size={18}
+                className={cn(
+                  isStreakActive ? "text-orange-400 animate-pulse" : "text-muted-foreground"
+                )}
+              />
+              <span className={cn(
+                "font-bold",
+                isStreakActive ? "text-orange-400" : "text-muted-foreground"
+              )}>
+                {currentStreak}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                day{currentStreak !== 1 ? 's' : ''} streak
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -143,15 +199,17 @@ export const Sidebar = () => {
               whileHover={{ x: 4 }}
               whileTap={{ scale: 0.98 }}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group",
+                "w-full flex items-center px-4 py-3 rounded-lg transition-all duration-200 group",
+                compactNav ? "justify-center" : "gap-3",
                 isActive(item.path)
                   ? "bg-primary/10 text-primary border border-primary/20"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
               )}
+              title={compactNav ? item.label : undefined}
             >
               <item.icon size={20} />
-              <span className="font-medium">{item.label}</span>
-              {isActive(item.path) && (
+              {!compactNav && <span className="font-medium">{item.label}</span>}
+              {!compactNav && isActive(item.path) && (
                 <ChevronRight size={16} className="ml-auto" />
               )}
             </motion.div>
@@ -165,15 +223,17 @@ export const Sidebar = () => {
           whileHover={{ x: 4 }}
           whileTap={{ scale: 0.98 }}
           className={cn(
-            "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
+            "w-full flex items-center px-4 py-3 rounded-lg transition-all duration-200",
+            compactNav ? "justify-center" : "gap-3",
             isActive("/admin")
               ? "bg-primary/10 text-primary border border-primary/20"
               : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
           )}
+          title={compactNav ? "Admin Panel" : undefined}
         >
           <Shield size={20} />
-          <span className="font-medium">Admin Panel</span>
-          {isActive("/admin") && (
+          {!compactNav && <span className="font-medium">Admin Panel</span>}
+          {!compactNav && isActive("/admin") && (
             <ChevronRight size={16} className="ml-auto" />
           )}
         </motion.div>
@@ -183,43 +243,55 @@ export const Sidebar = () => {
 
   {/* Bottom Navigation */}
   <div className="p-4 border-t border-sidebar-border space-y-3">
-    {bottomItems.map((item) => (
-      <Link key={item.id} to={item.path} onClick={() => setIsMobileOpen(false)}>
-        <motion.div
-          whileHover={{ x: 4 }}
-          whileTap={{ scale: 0.98 }}
-          className={cn(
-            "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
-            isActive(item.path)
-              ? "bg-primary/10 text-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-          )}
-        >
-          <item.icon size={20} />
-          <span className="font-medium">{item.label}</span>
-        </motion.div>
-      </Link>
-    ))}
+    <div className="flex items-center gap-2">
+      {bottomItems.map((item) => (
+        <Link key={item.id} to={item.path} onClick={() => setIsMobileOpen(false)} className="flex-1">
+          <motion.div
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.98 }}
+            className={cn(
+              "w-full flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-200",
+              isActive(item.path)
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+            )}
+            title={item.label}
+          >
+            <item.icon size={20} />
+            {!compactNav && <span className="font-medium">{item.label}</span>}
+          </motion.div>
+        </Link>
+      ))}
 
-    <div className="flex items-center justify-between px-4 py-2 rounded-lg border border-border/60 bg-background/60">
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Theme</p>
-        <p className="text-xs text-foreground">Light / Dark</p>
-      </div>
-      <ThemeToggle />
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleSignOut}
+        className="h-[46px] w-[46px] shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+        title="Sign Out"
+      >
+        <LogOut size={20} />
+      </Button>
     </div>
 
-    <Button
-      variant="ghost"
-      onClick={handleSignOut}
-      className="w-full justify-start gap-3 px-4 py-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-    >
-      <LogOut size={20} />
-      <span className="font-medium">Sign Out</span>
-    </Button>
+    <div className={cn("rounded-lg border border-border/60 bg-background/60", compactNav ? "px-2 py-2 space-y-2" : "px-4 py-3 space-y-3")}>
+      <div className="flex items-center justify-between">
+        <div className={cn(compactNav && "hidden")}>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Theme</p>
+          <p className="text-xs text-foreground">Light / Dark</p>
+        </div>
+        <ThemeToggle />
+      </div>
+      <div className="flex items-center justify-between">
+        {!compactNav && <p className="text-xs text-muted-foreground">Accent Color</p>}
+        <AccentThemePicker />
+      </div>
+    </div>
+
   </div>
     </>
   );
+  };
 
   return (
     <>
@@ -289,7 +361,7 @@ export const Sidebar = () => {
             >
               <X size={20} />
             </Button>
-            <SidebarContent />
+            <SidebarContent mobile />
           </motion.aside>
         )}
       </AnimatePresence>
@@ -298,7 +370,10 @@ export const Sidebar = () => {
       <motion.aside
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        className="hidden lg:flex fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex-col z-40"
+        className={cn(
+          "hidden lg:flex fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border flex-col z-40 transition-all duration-200 overflow-x-hidden",
+          isNavCollapsed ? "w-20" : "w-64"
+        )}
       >
         <SidebarContent />
       </motion.aside>

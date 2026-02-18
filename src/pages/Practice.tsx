@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -24,8 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { CoinBadge } from "@/components/ui/CoinBadge";
-import { AudioWaveform } from "@/components/ui/AudioWaveform";
-import { ScoreDisplay } from "@/components/practice/ScoreDisplay";
+import { ResultsView } from "@/components/practice/ResultsView";
+import { PracticeCameraFeed } from "@/components/practice/PracticeCameraFeed";
+import { RecordingWaveform } from "@/components/practice/RecordingWaveform";
 import { LessonGridView } from "@/components/practice/LessonGridView";
 import { LessonCalendarView } from "@/components/practice/LessonCalendarView";
 import { LessonWeekView } from "@/components/practice/LessonWeekView";
@@ -378,7 +379,8 @@ const Practice = () => {
       }
 
       // Set final coin change (base + bonuses)
-      setCoinChange(coins + totalBonusCoins);
+      const finalCoinChange = Number.isFinite(coins + totalBonusCoins) ? coins + totalBonusCoins : 0;
+      setCoinChange(finalCoinChange);
       
       if (bonusMessages.length > 0) {
         setBonusMessage(bonusMessages.join('\n'));
@@ -420,6 +422,27 @@ const Practice = () => {
     setBonusMessage(null);
     recorder.resetRecording();
   };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" || event.repeat) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      event.preventDefault();
+      if (!selectedLesson || !currentItem || isAnalyzing) return;
+
+      if (recorder.isRecording) {
+        void handleStopRecording();
+      } else {
+        void handleStartRecording();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedLesson, currentItem, isAnalyzing, recorder.isRecording]);
 
   if (lessonsLoading) {
     return (
@@ -554,7 +577,6 @@ const Practice = () => {
                 )}
               </>
             )}
-          </div>
       </LearnerLayout>
     );
   }
@@ -673,7 +695,7 @@ const Practice = () => {
                           {categoryStats.percent}%
                         </span>
                         {categoryStats.allMastered && (
-                          <span className="text-green-600 dark:text-green-400 text-sm">✓</span>
+                            <span className="text-green-600 dark:text-green-400 text-sm">✓</span>
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground mt-0.5">
@@ -818,20 +840,35 @@ const Practice = () => {
                     </div>
                     <p className={cn(
                       "text-xl font-medium transition-all",
-                      !showVietnamese && "blur-sm select-none"
+                      (!showVietnamese || recorder.isRecording) && "blur-sm select-none"
                     )}>
-                      {currentItem?.Vietnamese}
+                      {recorder.isRecording ? "Prompt hidden while recording" : currentItem?.Vietnamese}
                     </p>
                   </div>
 
                   {/* Recording Section */}
                   {!analysisResult ? (
                     <div className="text-center">
+                      <div className="mb-4">
+                        <PracticeCameraFeed
+                          isRecording={recorder.isRecording}
+                          audioLevel={recorder.getAudioLevel()}
+                          onTap={() => {
+                            if (isAnalyzing) return;
+                            if (recorder.isRecording) {
+                              void handleStopRecording();
+                            } else {
+                              void handleStartRecording();
+                            }
+                          }}
+                          hintText={recorder.isRecording ? "Tap or press Space to stop" : "Tap or press Space to record"}
+                        />
+                      </div>
                       {recorder.isRecording ? (
                         <div className="space-y-4">
-                          <AudioWaveform 
-                            isRecording={true} 
-                            audioLevel={recorder.getAudioLevel()} 
+                          <RecordingWaveform
+                            getAudioLevel={recorder.getAudioLevel}
+                            isActive={recorder.isRecording}
                           />
                           <Button 
                             size="lg" 
@@ -845,7 +882,7 @@ const Practice = () => {
                       ) : isAnalyzing ? (
                         <div className="py-8">
                           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-                          <p className="text-muted-foreground">Analyzing...</p>
+                          <p className="text-muted-foreground">Analyzing audio...</p>
                         </div>
                       ) : (
                         <div className="space-y-4">
@@ -870,11 +907,12 @@ const Practice = () => {
                       )}
                     </div>
                   ) : (
-                    // Results with ScoreDisplay
+                    // Results with detailed breakdown
                     <div className="space-y-6">
-                      <ScoreDisplay 
-                        analysisResult={analysisResult} 
+                      <ResultsView
+                        result={analysisResult}
                         coinChange={coinChange}
+                        onRetry={handleRetry}
                       />
 
                       {/* Your Recording - Playback Button */}
@@ -941,14 +979,6 @@ const Practice = () => {
                       {/* Actions */}
                       <div className="flex gap-3">
                         <Button 
-                          variant="outline" 
-                          className="flex-1"
-                          onClick={handleRetry}
-                        >
-                          <RotateCcw className="w-4 h-4 mr-2" />
-                          Retry
-                        </Button>
-                        <Button 
                           className="flex-1 gradient-primary"
                           onClick={handleNext}
                         >
@@ -1011,7 +1041,6 @@ const Practice = () => {
               </span>
             )}
           </div>
-        </div>
     </LearnerLayout>
   );
 };

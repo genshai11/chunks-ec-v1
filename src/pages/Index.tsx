@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+﻿import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   BookOpen,
@@ -157,7 +157,7 @@ const Index = () => {
                       </h2>
                       <p className="text-muted-foreground text-sm">
                         {Object.keys(nextLesson.categories || {}).length} categories • 
-                        {Object.values(nextLesson.categories || {}).reduce((sum: number, items) => sum + (Array.isArray(items) ? items.length : 0), 0)} items
+                        {Object.keys(nextLesson.categories || {}).length} categories • 
                       </p>
                     </div>
                     
@@ -305,7 +305,6 @@ const Index = () => {
               </div>
             </motion.section>
           )}
-        </div>
     </LearnerLayout>
   );
 };

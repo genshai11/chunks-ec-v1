@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
@@ -550,7 +550,6 @@ const Vocabulary = () => {
               </Card>
             </div>
           )}
-        </div>
     </LearnerLayout>
   );
 };

@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -28,8 +28,10 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+
+            {/* Learner app namespace */}
             <Route
-              path="/"
+              path="/app"
               element={
                 <ProtectedRoute>
                   <Index />
@@ -37,7 +39,7 @@ const App = () => (
               }
             />
             <Route
-              path="/courses"
+              path="/app/courses"
               element={
                 <ProtectedRoute>
                   <Courses />
@@ -45,7 +47,7 @@ const App = () => (
               }
             />
             <Route
-              path="/practice"
+              path="/app/practice"
               element={
                 <ProtectedRoute>
                   <Practice />
@@ -53,7 +55,7 @@ const App = () => (
               }
             />
             <Route
-              path="/vocabulary"
+              path="/app/vocabulary"
               element={
                 <ProtectedRoute>
                   <Vocabulary />
@@ -61,7 +63,7 @@ const App = () => (
               }
             />
             <Route
-              path="/leaderboard"
+              path="/app/leaderboard"
               element={
                 <ProtectedRoute>
                   <Leaderboard />
@@ -69,7 +71,7 @@ const App = () => (
               }
             />
             <Route
-              path="/profile"
+              path="/app/profile"
               element={
                 <ProtectedRoute>
                   <Profile />
@@ -77,13 +79,15 @@ const App = () => (
               }
             />
             <Route
-              path="/progress"
+              path="/app/progress"
               element={
                 <ProtectedRoute>
                   <Progress />
                 </ProtectedRoute>
               }
             />
+
+            {/* Admin namespace */}
             <Route
               path="/admin"
               element={
@@ -93,13 +97,24 @@ const App = () => (
               }
             />
             <Route
-              path="/introduction"
+              path="/admin/introduction"
               element={
                 <ProtectedRoute requireTeacher>
                   <ProjectIntroduction />
                 </ProtectedRoute>
               }
             />
+
+            {/* Legacy route compatibility */}
+            <Route path="/" element={<Navigate to="/app" replace />} />
+            <Route path="/courses" element={<Navigate to="/app/courses" replace />} />
+            <Route path="/practice" element={<Navigate to="/app/practice" replace />} />
+            <Route path="/vocabulary" element={<Navigate to="/app/vocabulary" replace />} />
+            <Route path="/leaderboard" element={<Navigate to="/app/leaderboard" replace />} />
+            <Route path="/profile" element={<Navigate to="/app/profile" replace />} />
+            <Route path="/progress" element={<Navigate to="/app/progress" replace />} />
+            <Route path="/introduction" element={<Navigate to="/admin/introduction" replace />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

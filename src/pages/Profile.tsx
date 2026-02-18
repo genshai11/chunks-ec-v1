@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { 
   User, 
@@ -182,7 +182,7 @@ const Profile = () => {
   }
 
   return (
-    <LearnerLayout contentClassName="max-w-4xl">
+    <LearnerLayout contentClassName="max-w-6xl">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -291,7 +291,7 @@ const Profile = () => {
             transition={{ delay: 0.1 }}
             className="mb-6"
           >
-            <PracticeHeatmap practiceHistory={practiceHistory} />
+            <PracticeHeatmap practiceHistory={practiceHistory} className="w-full" />
           </motion.div>
 
           {/* Stats Grid */}
@@ -688,7 +688,6 @@ const Profile = () => {
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
     </LearnerLayout>
   );
 };

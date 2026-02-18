@@ -613,6 +613,7 @@ export const useSavePractice = () => {
       queryClient.invalidateQueries({ queryKey: ['user-streak'] });
       queryClient.invalidateQueries({ queryKey: ['user-badges'] });
       queryClient.invalidateQueries({ queryKey: ['realtime-leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['progress-stats'] });
 
       // Show streak notification
       if (result.streakResult.is_new_day && result.streakResult.streak_extended) {

@@ -34,6 +34,11 @@ export const LessonWeekView = ({
   getLessonProgress,
   onSelectLesson 
 }: LessonWeekViewProps) => {
+  const getStatus = (completion = 0) => {
+    if (completion >= 100) return { label: "Completed", className: "bg-success/15 text-success border-success/30" };
+    if (completion > 0) return { label: "In Progress", className: "bg-primary/10 text-primary border-primary/30" };
+    return { label: "Not Started", className: "bg-muted text-muted-foreground border-border/50" };
+  };
   
   const weekGroups = useMemo(() => {
     if (!lessonDeadlines || lessonDeadlines.length === 0) {
@@ -112,6 +117,7 @@ export const LessonWeekView = ({
             {week.lessons.map(({ lesson, deadline, progress }, index) => {
               const deadlineStatus = deadline ? getDeadlineStatus(deadline) : null;
               const isComplete = progress?.completionPercent === 100;
+              const status = getStatus(progress?.completionPercent || 0);
 
               return (
                 <motion.div
@@ -147,6 +153,9 @@ export const LessonWeekView = ({
                             <h3 className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
                               {lesson.lesson_name}
                             </h3>
+                            <Badge variant="outline" className={status.className}>
+                              {status.label}
+                            </Badge>
                           </div>
                           
                           <div className="flex items-center gap-3 flex-wrap">

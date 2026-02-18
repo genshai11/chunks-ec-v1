@@ -77,7 +77,7 @@ const Auth: React.FC = () => {
             toast.error(error.message);
           }
         } else {
-          toast.success('Account created successfully! Welcome to CHUNKS!');
+          toast.success('Account created successfully! Welcome to Chunks Class!');
           navigate('/');
         }
       } else {
@@ -128,11 +128,11 @@ const Auth: React.FC = () => {
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center">
               <Sparkles className="w-7 h-7 text-white" />
             </div>
-            <span className="text-3xl font-display font-bold text-foreground">CHUNKS</span>
+            <span className="text-3xl font-display font-bold text-foreground">Chunks Class</span>
           </motion.div>
-          <p className="text-muted-foreground">
-            Master English speaking with AI-powered practice
-          </p>
+            <p className="text-muted-foreground">
+              Chunks Class - Master English speaking with AI-powered practice
+            </p>
         </div>
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">

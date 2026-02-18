@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Medal, Award, Crown, Loader2, ArrowUp, ArrowDown, Sparkles, Radio, RefreshCw, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -306,7 +306,7 @@ const Leaderboard = () => {
                           </div>
                           <div className="text-right">
                             <div className="text-xl font-bold text-orange-500 flex items-center gap-1">
-                              🔥 {entry.currentStreak}
+                              <Sparkles className="w-4 h-4" /> {entry.currentStreak}
                             </div>
                             <div className="text-xs text-muted-foreground">days</div>
                           </div>
@@ -318,9 +318,9 @@ const Leaderboard = () => {
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
     </LearnerLayout>
   );
 };
 
 export default Leaderboard;
+

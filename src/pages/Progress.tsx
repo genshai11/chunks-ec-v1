@@ -1,13 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Target, 
-  TrendingUp, 
   Clock,
   Trophy,
   History,
   Loader2,
-  BookOpen,
   ChevronDown,
   ChevronRight,
   CheckCircle2,
@@ -15,10 +12,12 @@ import {
   Layers,
   Users
 } from "lucide-react";
+import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import { LearnerLayout } from "@/components/layout/LearnerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress as ProgressBar } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useUserStats } from "@/hooks/usePractice";
 import { useStreak } from "@/hooks/useStreak";
 import { useProgressStats, ClassProgress, LessonProgress } from "@/hooks/useProgressStats";
@@ -32,8 +31,68 @@ const Progress = () => {
   const { data: progressStats, isLoading: progressLoading } = useProgressStats();
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([
+    "completion",
+    "mastery",
+    "score",
+    "consistency",
+  ]);
 
   const isLoading = statsLoading || progressLoading;
+
+  const reportMetrics = useMemo(() => {
+    const totalItems = progressStats?.totalItems || 0;
+    const totalMastered = progressStats?.totalMastered || 0;
+    const totalPractice = userStats?.totalPractice || 0;
+    const highScores = userStats?.highScores || 0;
+    const currentStreak = streakData?.current_streak || 0;
+    const longestStreak = streakData?.longest_streak || 0;
+
+    return [
+      {
+        id: "completion",
+        label: "Completion",
+        value: progressStats?.overallCompletion || 0,
+      },
+      {
+        id: "mastery",
+        label: "Mastery",
+        value: totalItems > 0 ? Math.round((totalMastered / totalItems) * 100) : 0,
+      },
+      {
+        id: "score",
+        label: "Avg Score",
+        value: userStats?.avgScore || 0,
+      },
+      {
+        id: "consistency",
+        label: "Consistency",
+        value: longestStreak > 0 ? Math.round((currentStreak / longestStreak) * 100) : 0,
+      },
+      {
+        id: "intensity",
+        label: "Practice Intensity",
+        value: Math.min(100, Math.round((totalPractice / 100) * 100)),
+      },
+      {
+        id: "quality",
+        label: "High-score Rate",
+        value: totalPractice > 0 ? Math.round((highScores / totalPractice) * 100) : 0,
+      },
+    ];
+  }, [progressStats, userStats, streakData]);
+
+  const radarData = useMemo(
+    () =>
+      reportMetrics
+        .filter((metric) => selectedMetrics.includes(metric.id))
+        .map((metric) => ({
+          metric: metric.label,
+          score: metric.value,
+          fullMark: 100,
+        })),
+    [reportMetrics, selectedMetrics]
+  );
 
   const toggleClass = (classId: string) => {
     setExpandedClasses(prev => {
@@ -56,6 +115,16 @@ const Progress = () => {
         next.add(lessonId);
       }
       return next;
+    });
+  };
+
+  const toggleMetric = (metricId: string) => {
+    setSelectedMetrics((prev) => {
+      if (prev.includes(metricId)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((id) => id !== metricId);
+      }
+      return [...prev, metricId];
     });
   };
 
@@ -135,6 +204,59 @@ const Progress = () => {
               <CardContent className="py-4 text-center">
                 <div className="text-3xl font-bold">{userStats?.totalPractice || 0}</div>
                 <div className="text-xs text-muted-foreground">Practices</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Dynamic Learning Report */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+            className="mb-6"
+          >
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Dynamic Learning Report</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Ch?n/b? metric ?? tu? ch?nh b?o c?o radar theo nhu c?u.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {reportMetrics.map((metric) => {
+                    const active = selectedMetrics.includes(metric.id);
+                    return (
+                      <Button
+                        key={metric.id}
+                        type="button"
+                        variant={active ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => toggleMetric(metric.id)}
+                        className="rounded-full"
+                      >
+                        {metric.label}: {metric.value}%
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <div className="h-[320px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="metric" />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                      <Radar
+                        name="Performance"
+                        dataKey="score"
+                        stroke="hsl(var(--primary))"
+                        fill="hsl(var(--primary))"
+                        fillOpacity={0.3}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -463,7 +585,6 @@ const Progress = () => {
               </Card>
             </motion.div>
           </div>
-        </div>
     </LearnerLayout>
   );
 };

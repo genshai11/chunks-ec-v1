@@ -122,6 +122,26 @@
     --shadow-glow-gold: 0 0 30px -8px hsl(25 96% 60% / 0.55);
     --shadow-card: 0 6px 25px -6px rgba(0, 0, 0, 0.7);
   }
+
+  :root[data-accent='red'],
+  .dark[data-accent='red'] {
+    --primary: 350 85% 58%;
+    --primary-glow: 350 88% 66%;
+    --ring: 350 85% 58%;
+    --sidebar-primary: 350 85% 58%;
+    --gradient-primary: linear-gradient(135deg, hsl(350 85% 58%), hsl(12 88% 62%));
+    --shadow-glow-primary: 0 0 30px -10px hsl(350 85% 58% / 0.45);
+  }
+
+  :root[data-accent='lime'],
+  .dark[data-accent='lime'] {
+    --primary: 92 72% 43%;
+    --primary-glow: 84 78% 52%;
+    --ring: 92 72% 43%;
+    --sidebar-primary: 92 72% 43%;
+    --gradient-primary: linear-gradient(135deg, hsl(92 72% 43%), hsl(74 78% 49%));
+    --shadow-glow-primary: 0 0 30px -10px hsl(92 72% 43% / 0.45);
+  }
 }
 
 @layer base {
