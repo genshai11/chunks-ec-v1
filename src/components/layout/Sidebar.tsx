@@ -73,16 +73,36 @@ export const Sidebar = () => {
   const currentStreak = streak?.current_streak || 0;
   const isStreakActive = streak?.last_practice_date === new Date().toISOString().split('T')[0];
 
+  const BrandLockup = ({ compact = false }: { compact?: boolean }) => (
+    <div className="flex items-center gap-3">
+      <img src={logo} alt="CHUNKS" className={cn(compact ? "h-8 w-auto" : "h-10 w-auto")} />
+      <div className="leading-tight">
+        <p className={cn(
+          "font-black tracking-tight text-foreground",
+          compact ? "text-lg" : "text-xl"
+        )}>
+          Chunks
+        </p>
+        <p className={cn(
+          "uppercase tracking-[0.22em] text-muted-foreground",
+          compact ? "text-[9px]" : "text-[10px]"
+        )}>
+          Speaking Lab
+        </p>
+      </div>
+    </div>
+  );
+
   const SidebarContent = () => (
     <>
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <Link to="/" onClick={() => setIsMobileOpen(false)}>
           <motion.div
-            className="flex items-center gap-3"
+            className="flex items-center"
             whileHover={{ scale: 1.02 }}
           >
-            <img src={logo} alt="CHUNKS" className="h-10 w-auto" />
+            <BrandLockup />
           </motion.div>
         </Link>
       </div>
@@ -206,7 +226,7 @@ export const Sidebar = () => {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-sidebar border-b border-sidebar-border z-50 flex items-center justify-between px-4">
         <Link to="/">
-          <img src={logo} alt="CHUNKS" className="h-8 w-auto" />
+          <BrandLockup compact />
         </Link>
 
         <div className="flex items-center gap-3">
