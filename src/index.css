@@ -1,0 +1,271 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CHUNKS Design System - Gamified Language Learning */
+
+@layer base {
+  :root {
+    --background: 210 58% 97%;
+    --foreground: 214 9% 17%;
+
+    --card: 210 40% 96%;
+    --card-foreground: 214 9% 17%;
+    --card-elevated: 214 12% 92%;
+
+    --popover: 210 24% 96%;
+    --popover-foreground: 214 9% 17%;
+
+    --primary: 217 93% 59%;
+    --primary-foreground: 217 100% 100%;
+    --primary-glow: 217 95% 66%;
+
+    --secondary: 210 96% 74%;
+    --secondary-foreground: 214 9% 17%;
+
+    --muted: 210 16% 85%;
+    --muted-foreground: 215 12% 45%;
+
+    --accent: 25 96% 60%;
+    --accent-foreground: 25 84% 14%;
+    --accent-glow: 25 100% 65%;
+
+    --success: 142 45% 47%;
+    --success-foreground: 215 15% 93%;
+
+    --warning: 30 96% 59%;
+    --warning-foreground: 215 15% 93%;
+
+    --destructive: 0 78% 58%;
+    --destructive-foreground: 215 15% 93%;
+
+    --border: 210 20% 90%;
+    --input: 210 16% 93%;
+    --ring: 217 93% 59%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 210 24% 96%;
+    --sidebar-foreground: 214 9% 17%;
+    --sidebar-primary: 217 93% 59%;
+    --sidebar-primary-foreground: 217 100% 100%;
+    --sidebar-accent: 210 16% 85%;
+    --sidebar-accent-foreground: 214 9% 17%;
+    --sidebar-border: 210 16% 85%;
+    --sidebar-ring: 217 93% 59%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(217 93% 59%), hsl(217 95% 66%));
+    --gradient-gold: linear-gradient(135deg, hsl(25 96% 60%), hsl(26 96% 64%));
+    --gradient-dark: linear-gradient(180deg, hsl(210 24% 96%), hsl(210 24% 96%));
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6));
+
+    --shadow-glow-primary: 0 0 30px -12px hsl(217 93% 59% / 0.35);
+    --shadow-glow-gold: 0 0 30px -12px hsl(25 96% 60% / 0.35);
+    --shadow-card: 0 20px 40px -30px rgba(15, 23, 42, 0.2);
+  }
+
+  .dark {
+    --background: 224 20% 13%;
+    --foreground: 213 32% 94%;
+
+    --card: 224 24% 10%;
+    --card-foreground: 213 32% 94%;
+    --card-elevated: 224 24% 12%;
+
+    --popover: 223 28% 12%;
+    --popover-foreground: 213 32% 94%;
+
+    --primary: 217 93% 59%;
+    --primary-foreground: 210 40% 98%;
+    --primary-glow: 217 95% 66%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 218 33% 20%;
+    --muted-foreground: 214 30% 70%;
+
+    --accent: 25 96% 60%;
+    --accent-foreground: 224 20% 13%;
+    --accent-glow: 25 96% 65%;
+
+    --success: 142 45% 47%;
+    --success-foreground: 224 20% 13%;
+
+    --warning: 30 96% 59%;
+    --warning-foreground: 224 20% 13%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 223 21% 18%;
+    --input: 223 21% 16%;
+    --ring: 217 93% 59%;
+
+    --sidebar-background: 222 20% 9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 93% 59%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 218 22% 13%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 223 21% 18%;
+    --sidebar-ring: 217 93% 59%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(217 93% 59%), hsl(217 95% 66%));
+    --gradient-gold: linear-gradient(135deg, hsl(25 96% 60%), hsl(26 96% 64%));
+    --gradient-dark: linear-gradient(180deg, hsl(224 20% 13%), hsl(224 20% 7%));
+    --gradient-glass: linear-gradient(135deg, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.45));
+
+    --shadow-glow-primary: 0 0 30px -8px hsl(217 93% 59% / 0.55);
+    --shadow-glow-gold: 0 0 30px -8px hsl(25 96% 60% / 0.55);
+    --shadow-card: 0 6px 25px -6px rgba(0, 0, 0, 0.7);
+  }
+
+  :root[data-accent='red'],
+  .dark[data-accent='red'] {
+    --primary: 350 85% 58%;
+    --primary-glow: 350 88% 66%;
+    --ring: 350 85% 58%;
+    --sidebar-primary: 350 85% 58%;
+    --gradient-primary: linear-gradient(135deg, hsl(350 85% 58%), hsl(12 88% 62%));
+    --shadow-glow-primary: 0 0 30px -10px hsl(350 85% 58% / 0.45);
+  }
+
+  :root[data-accent='lime'],
+  .dark[data-accent='lime'] {
+    --primary: 92 72% 43%;
+    --primary-glow: 84 78% 52%;
+    --ring: 92 72% 43%;
+    --sidebar-primary: 92 72% 43%;
+    --gradient-primary: linear-gradient(135deg, hsl(92 72% 43%), hsl(74 78% 49%));
+    --shadow-glow-primary: 0 0 30px -10px hsl(92 72% 43% / 0.45);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+    box-shadow: var(--shadow-card);
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-gold {
+    background: var(--gradient-gold);
+  }
+
+  .glow-primary {
+    box-shadow: var(--shadow-glow-primary);
+  }
+
+  .glow-gold {
+    box-shadow: var(--shadow-glow-gold);
+  }
+
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent;
+    background: var(--gradient-primary);
+  }
+
+  .text-gradient-gold {
+    @apply bg-clip-text text-transparent;
+    background: var(--gradient-gold);
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+    background-size: 200% 100%;
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-soft {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Auto-hide scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(155, 155, 155, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(155, 155, 155, 0.5);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(155, 155, 155, 0.3) transparent;
+}
